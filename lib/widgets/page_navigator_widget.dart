@@ -6,7 +6,6 @@ import 'package:flutter/rendering.dart' show ScrollDirection;
 import '../models/practice_document.dart';
 import 'practice_sheet_widget.dart';
 
-const double _kAddBtnSize = 36.0;
 const double _kPageGap = 56.0;
 
 class PageNavigatorWidget extends StatefulWidget {
@@ -142,77 +141,78 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
     );
   }
 
+  Widget _buildGapCell(double width, VoidCallback? onInsert) {
+    return SizedBox(
+      width: width,
+      height: kSheetHeight,
+      child: onInsert != null ? Center(child: _AddPageButton(onTap: onInsert)) : null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (ctx, constraints) {
       final double W = constraints.maxWidth;
       final double H = constraints.maxHeight;
       final double sidePad = math.max(0, (W - kSheetWidth) / 2);
-      final double pageTop = math.max(0.0, (H - kSheetHeight) / 2);
-      final double btnY = pageTop + kSheetHeight / 2 - _kAddBtnSize / 2;
-      final double btnLeftX =
-          math.max(0, sidePad - _kPageGap / 2 - _kAddBtnSize / 2);
-      final double btnRightX =
-          sidePad + kSheetWidth + _kPageGap / 2 - _kAddBtnSize / 2;
       final int pageCount = widget.document.pages.length;
 
-      return Stack(
-        children: [
-          // Scrollable row of pages
-          NotificationListener<UserScrollNotification>(
-            onNotification: (n) {
-              if (n.direction == ScrollDirection.idle) _snapToNearestPage();
-              return false;
-            },
-            child: Listener(
-            onPointerSignal: (event) {
-              if (event is PointerScrollEvent) _onWheelScroll(event);
-            },
-            child: SizedBox(
-              width: W,
-              height: H,
-              child: SingleChildScrollView(
-                controller: _scrollCtrl,
-                scrollDirection: Axis.horizontal,
-                physics: const ClampingScrollPhysics(),
-                child: SizedBox(
-                  height: H,
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: sidePad),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        for (int i = 0; i < pageCount; i++) ...[
-                          if (i > 0) SizedBox(width: _kPageGap),
-                          _buildPageCell(i),
-                        ],
-                      ],
+      // Edge gap cells use the same _kPageGap width as inter-page gaps so the
+      // button center lands at _kPageGap/2 (28 px) from the page edge.
+      final double edgeInner = math.min(_kPageGap, sidePad);
+      final double edgeOuter = math.max(0, sidePad - _kPageGap);
+
+      return NotificationListener<UserScrollNotification>(
+        onNotification: (n) {
+          if (n.direction == ScrollDirection.idle) _snapToNearestPage();
+          return false;
+        },
+        child: Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _onWheelScroll(event);
+          },
+          child: SizedBox(
+            width: W,
+            height: H,
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              child: SizedBox(
+                height: H,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(width: edgeOuter),
+                    _buildGapCell(
+                      edgeInner,
+                      _focusedIdx == 0 ? widget.onInsertPageBefore : null,
                     ),
-                  ),
+                    for (int i = 0; i < pageCount; i++) ...[
+                      _buildPageCell(i),
+                      if (i < pageCount - 1)
+                        _buildGapCell(
+                          _kPageGap,
+                          i == _focusedIdx
+                              ? widget.onInsertPageAfter
+                              : (i + 1 == _focusedIdx
+                                  ? widget.onInsertPageBefore
+                                  : null),
+                        ),
+                    ],
+                    _buildGapCell(
+                      edgeInner,
+                      _focusedIdx == pageCount - 1
+                          ? widget.onInsertPageAfter
+                          : null,
+                    ),
+                    SizedBox(width: edgeOuter),
+                  ],
                 ),
               ),
             ),
           ),
-          ),
-
-          // Left + button — fixed in viewport, centred in the gap left of the page
-          Positioned(
-            left: btnLeftX,
-            top: btnY,
-            width: _kAddBtnSize,
-            height: _kAddBtnSize,
-            child: _AddPageButton(onTap: widget.onInsertPageBefore),
-          ),
-
-          // Right + button — fixed in viewport, centred in the gap right of the page
-          Positioned(
-            left: btnRightX,
-            top: btnY,
-            width: _kAddBtnSize,
-            height: _kAddBtnSize,
-            child: _AddPageButton(onTap: widget.onInsertPageAfter),
-          ),
-        ],
+        ),
       );
     });
   }
@@ -240,6 +240,8 @@ class _AddPageButtonState extends State<_AddPageButton> {
         onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
+          width: 28,
+          height: 28,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: _hovered ? const Color(0xFF4A90D9) : Colors.white,
