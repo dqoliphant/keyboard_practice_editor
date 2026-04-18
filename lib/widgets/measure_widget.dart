@@ -42,7 +42,7 @@ class MeasureWidget extends StatelessWidget {
               onKeyTap: (semi) => onKeyTap(0, semi),
             ),
           ),
-          const SizedBox(height: 3.0),
+          const SizedBox(height: 10.0),
           Expanded(
             child: PianoKeyboardWidget(
               activeKeys: keyboards[1],
