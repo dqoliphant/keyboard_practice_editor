@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../models/chord_detector.dart';
 import 'piano_keyboard_painter.dart';
 
 class MeasureWidget extends StatelessWidget {
@@ -23,16 +24,34 @@ class MeasureWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            height: 16.0,
+            height: 18.0,
             child: Padding(
-              padding: const EdgeInsets.only(left: 3.0),
-              child: Text(
-                '$measureNumber',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF333333),
-                  fontWeight: FontWeight.w600,
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    '$measureNumber',
+                    style: const TextStyle(
+                      fontSize: 10,
+                      color: Color(0xFF888888),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      detectChord(keyboards) ?? '',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF1A1A1A),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
