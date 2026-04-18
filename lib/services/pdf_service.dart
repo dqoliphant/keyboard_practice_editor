@@ -1,126 +1,200 @@
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../models/practice_document.dart';
 import '../models/practice_sheet.dart';
+import '../models/chord_detector.dart';
 
 class PdfService {
-  Future<void> printOrExport(PracticeSheet sheet) async {
+  Future<Uint8List> buildPdfBytes(PracticeDocument document) async {
     final doc = pw.Document();
 
-    doc.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat(
-          11 * PdfPageFormat.inch,
-          8.5 * PdfPageFormat.inch,
+    for (final sheet in document.pages) {
+      doc.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(
+            11 * PdfPageFormat.inch,
+            8.5 * PdfPageFormat.inch,
+          ),
+          orientation: pw.PageOrientation.landscape,
+          margin: pw.EdgeInsets.all(20 * PdfPageFormat.point),
+          build: (pw.Context ctx) => _buildPage(document.songTitle, sheet),
         ),
-        orientation: pw.PageOrientation.landscape,
-        margin: pw.EdgeInsets.all(20 * PdfPageFormat.point),
-        build: (pw.Context ctx) {
-          return pw.Column(
+      );
+    }
+
+    return doc.save();
+  }
+
+  Future<void> printOrExport(PracticeDocument document) async {
+    final bytes = await buildPdfBytes(document);
+    await Printing.layoutPdf(
+      onLayout: (_) async => bytes,
+      name: document.songTitle.isNotEmpty
+          ? '${document.songTitle}.pdf'
+          : 'practice_sheet.pdf',
+    );
+  }
+
+  // -------------------------------------------------------------------------
+
+  pw.Widget _buildPage(String songTitle, PracticeSheet sheet) {
+    return pw.Column(
+      children: [
+        _buildPageHeader(songTitle, sheet.sectionLabel),
+        pw.SizedBox(height: 4),
+        pw.Expanded(
+          child: pw.Column(
             children: List.generate(3, (row) {
               return pw.Expanded(
                 child: pw.Row(
                   children: List.generate(4, (col) {
-                    final int mi = row * 4 + col;
+                    final slotIdx = row * 4 + col;
                     return pw.Expanded(
-                      child: _buildMeasurePdf(mi + 1, sheet.state[mi]),
+                      child: pw.Padding(
+                        padding: const pw.EdgeInsets.all(3),
+                        child: sheet.occupiedSlots.contains(slotIdx)
+                            ? _buildMeasure(
+                                sheet.measureNumberForSlot(slotIdx),
+                                sheet.state[slotIdx],
+                              )
+                            : pw.SizedBox(),
+                      ),
                     );
                   }),
                 ),
               );
             }),
-          );
-        },
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (_) => doc.save(),
-      name: 'practice_sheet.pdf',
+          ),
+        ),
+      ],
     );
   }
 
-  pw.Widget _buildMeasurePdf(int measureNumber, List<List<bool>> keyboards) {
+  pw.Widget _buildPageHeader(String songTitle, String sectionLabel) {
+    final hasTitle = songTitle.isNotEmpty;
+    final hasSection = sectionLabel.isNotEmpty;
+    if (!hasTitle && !hasSection) return pw.SizedBox(height: 24);
+
+    return pw.SizedBox(
+      height: 40,
+      child: pw.Center(
+        child: pw.Column(
+          mainAxisSize: pw.MainAxisSize.min,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
+          children: [
+            if (hasTitle)
+              pw.Text(
+                songTitle,
+                style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold),
+                textAlign: pw.TextAlign.center,
+              ),
+            if (hasTitle && hasSection) pw.SizedBox(height: 3),
+            if (hasSection)
+              pw.Text(
+                sectionLabel,
+                style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic),
+                textAlign: pw.TextAlign.center,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards) {
+    final chord = detectChord(keyboards);
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey700, width: 0.5),
       ),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            '$measureNumber',
-            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          // Header: measure number left, chord centred
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            child: pw.Row(
+              children: [
+                pw.Text(
+                  '$measureNumber',
+                  style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    chord ?? '',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+              ],
+            ),
           ),
-          pw.Expanded(child: _buildKeyboardPdf(keyboards[0])),
+          pw.Expanded(child: _buildKeyboard(keyboards[0])),
           pw.SizedBox(height: 2),
-          pw.Expanded(child: _buildKeyboardPdf(keyboards[1])),
+          pw.Expanded(child: _buildKeyboard(keyboards[1])),
+          pw.SizedBox(height: 2),
         ],
       ),
     );
   }
 
-  pw.Widget _buildKeyboardPdf(List<bool> activeKeys) {
-    return pw.CustomPaint(
-      painter: (pdfCanvas, size) {
-        _drawKeyboardPdf(pdfCanvas, size, activeKeys);
-      },
-    );
-  }
-
-  void _drawKeyboardPdf(
-    PdfGraphics canvas,
-    PdfPoint size,
-    List<bool> activeKeys,
-  ) {
-    const int whiteKeyCount = 14;
-    final double whiteW = size.x / whiteKeyCount;
-    final double whiteH = size.y;
-    final double blackW = whiteW * 0.6;
-    final double blackH = whiteH * 0.62;
-
+  // Keyboard rendered as widgets so layout constraints are respected.
+  pw.Widget _buildKeyboard(List<bool> activeKeys) {
     const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
-    final blackKeyDefs = [
+    const blackKeyDefs = [
       (1, 0), (3, 1), (6, 3), (8, 4), (10, 5),
       (13, 7), (15, 8), (18, 10), (20, 11), (22, 12),
     ];
 
-    // White keys
-    for (int i = 0; i < whiteKeyOrder.length; i++) {
-      final int semi = whiteKeyOrder[i];
-      final bool active = activeKeys[semi];
-      final double x = i * whiteW;
-      final double y = 0;
+    return pw.LayoutBuilder(builder: (context, constraints) {
+      final double w = constraints?.maxWidth ?? 100;
+      final double h = constraints?.maxHeight ?? 40;
+      final double keyW = w / 14;
+      final double blackW = keyW * 0.6;
+      final double blackH = h * 0.62;
 
-      canvas.setFillColor(active ? PdfColors.blue400 : PdfColors.white);
-      canvas.drawRect(x, y, whiteW, whiteH);
-      canvas.fillPath();
-
-      canvas.setStrokeColor(PdfColors.grey500);
-      canvas.setLineWidth(0.3);
-      canvas.drawRect(x, y, whiteW, whiteH);
-      canvas.strokePath();
-    }
-
-    // Black keys
-    for (final (semi, leftWhiteIdx) in blackKeyDefs) {
-      final bool active = activeKeys[semi];
-      final double cx = (leftWhiteIdx + 1) * whiteW;
-      final double x = cx - blackW / 2;
-
-      canvas.setFillColor(active ? PdfColors.blue400 : PdfColors.white);
-      canvas.drawRect(x, 0, blackW, blackH);
-      canvas.fillPath();
-
-      // Left, bottom, right border only
-      canvas.setStrokeColor(PdfColors.grey900);
-      canvas.setLineWidth(1.0);
-      canvas.moveTo(x, blackH);
-      canvas.lineTo(x, 0);
-      canvas.moveTo(x, blackH);
-      canvas.lineTo(x + blackW, blackH);
-      canvas.lineTo(x + blackW, 0);
-      canvas.strokePath();
-    }
+      return pw.Stack(
+        children: [
+          // White keys — full height, tiled across full width
+          pw.Positioned.fill(
+            child: pw.Row(
+              children: List.generate(14, (i) {
+                final bool active = activeKeys[whiteKeyOrder[i]];
+                return pw.Expanded(
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      color: active ? PdfColors.blue400 : PdfColors.white,
+                      border: pw.Border.all(color: PdfColors.grey400, width: 0.3),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+          // Black keys — sit at the top, shorter than white keys
+          for (final (semi, leftWhite) in blackKeyDefs)
+            pw.Positioned(
+              left: (leftWhite + 1) * keyW - blackW / 2,
+              top: 0,
+              child: pw.SizedBox(
+                width: blackW,
+                height: blackH,
+                child: pw.Container(
+                  decoration: pw.BoxDecoration(
+                    color: activeKeys[semi] ? PdfColors.blue400 : PdfColors.black,
+                    border: pw.Border(
+                      left: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
+                      bottom: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
+                      right: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
   }
 }

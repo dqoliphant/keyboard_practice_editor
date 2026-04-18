@@ -118,7 +118,7 @@ class _EditorPageState extends State<EditorPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await _pdfService.printOrExport(_document.currentPage);
+      await _pdfService.printOrExport(_document);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
