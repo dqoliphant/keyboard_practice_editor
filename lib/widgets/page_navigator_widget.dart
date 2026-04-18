@@ -1,0 +1,268 @@
+import 'dart:async';
+import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
+import '../models/practice_document.dart';
+import 'practice_sheet_widget.dart';
+
+const double _kAddBtnSize = 36.0;
+const double _kPageGap = 56.0;
+
+class PageNavigatorWidget extends StatefulWidget {
+  final PracticeDocument document;
+  final void Function(int slotIdx, int kb, int semi) onKeyTap;
+  final void Function(int slotIdx) onAddMeasure;
+  final void Function(int slotIdx) onDeleteMeasure;
+  final void Function(int pageIndex) onGoToPage;
+  final VoidCallback onInsertPageBefore;
+  final VoidCallback onInsertPageAfter;
+
+  const PageNavigatorWidget({
+    super.key,
+    required this.document,
+    required this.onKeyTap,
+    required this.onAddMeasure,
+    required this.onDeleteMeasure,
+    required this.onGoToPage,
+    required this.onInsertPageBefore,
+    required this.onInsertPageAfter,
+  });
+
+  @override
+  State<PageNavigatorWidget> createState() => _PageNavigatorWidgetState();
+}
+
+class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
+  late final ScrollController _scrollCtrl;
+  int _focusedIdx = 0;
+  Timer? _snapTimer;
+
+  double get _pageStride => kSheetWidth + _kPageGap;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusedIdx = widget.document.currentPageIndex;
+    _scrollCtrl = ScrollController(
+      initialScrollOffset: _focusedIdx * _pageStride,
+    );
+    _scrollCtrl.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(PageNavigatorWidget old) {
+    super.didUpdateWidget(old);
+    final newIdx = widget.document.currentPageIndex;
+    if (newIdx != _focusedIdx) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _scrollToPage(newIdx);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _snapTimer?.cancel();
+    _scrollCtrl.removeListener(_onScroll);
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollCtrl.hasClients) return;
+    final maxIdx = widget.document.pages.length - 1;
+    final newIdx =
+        (_scrollCtrl.offset / _pageStride).round().clamp(0, maxIdx);
+    if (newIdx != _focusedIdx) {
+      setState(() => _focusedIdx = newIdx);
+      widget.onGoToPage(newIdx);
+    }
+  }
+
+  void _scrollToPage(int idx) {
+    setState(() => _focusedIdx = idx);
+    widget.onGoToPage(idx);
+    if (!_scrollCtrl.hasClients) return;
+    _scrollCtrl.animateTo(
+      (idx * _pageStride).clamp(
+        _scrollCtrl.position.minScrollExtent,
+        _scrollCtrl.position.maxScrollExtent,
+      ),
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _snapToNearestPage() {
+    if (!_scrollCtrl.hasClients) return;
+    final maxIdx = widget.document.pages.length - 1;
+    final idx = (_scrollCtrl.offset / _pageStride).round().clamp(0, maxIdx);
+    final target = idx * _pageStride;
+    if ((_scrollCtrl.offset - target).abs() < 1.0) return;
+    _scrollToPage(idx);
+  }
+
+  void _onWheelScroll(PointerScrollEvent event) {
+    if (!_scrollCtrl.hasClients) return;
+    final delta = event.scrollDelta.dy.abs() >= event.scrollDelta.dx.abs()
+        ? event.scrollDelta.dy
+        : event.scrollDelta.dx;
+    _scrollCtrl.jumpTo(
+      (_scrollCtrl.offset + delta).clamp(
+        _scrollCtrl.position.minScrollExtent,
+        _scrollCtrl.position.maxScrollExtent,
+      ),
+    );
+    _snapTimer?.cancel();
+    _snapTimer = Timer(const Duration(milliseconds: 200), _snapToNearestPage);
+  }
+
+  Widget _buildPageCell(int i) {
+    final sheet = widget.document.pages[i];
+    if (i == _focusedIdx) {
+      return PracticeSheetWidget(
+        sheet: sheet,
+        onKeyTap: widget.onKeyTap,
+        onAddMeasure: widget.onAddMeasure,
+        onDeleteMeasure: widget.onDeleteMeasure,
+      );
+    }
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _scrollToPage(i),
+      child: IgnorePointer(
+        child: PracticeSheetWidget(
+          sheet: sheet,
+          onKeyTap: (a, b, c) {},
+          onAddMeasure: (a) {},
+          onDeleteMeasure: (a) {},
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(builder: (ctx, constraints) {
+      final double W = constraints.maxWidth;
+      final double H = constraints.maxHeight;
+      final double sidePad = math.max(0, (W - kSheetWidth) / 2);
+      final double pageTop = math.max(0.0, (H - kSheetHeight) / 2);
+      final double btnY = pageTop + kSheetHeight / 2 - _kAddBtnSize / 2;
+      final double btnLeftX =
+          math.max(0, sidePad - _kPageGap / 2 - _kAddBtnSize / 2);
+      final double btnRightX =
+          sidePad + kSheetWidth + _kPageGap / 2 - _kAddBtnSize / 2;
+      final int pageCount = widget.document.pages.length;
+
+      return Stack(
+        children: [
+          // Scrollable row of pages
+          NotificationListener<UserScrollNotification>(
+            onNotification: (n) {
+              if (n.direction == ScrollDirection.idle) _snapToNearestPage();
+              return false;
+            },
+            child: Listener(
+            onPointerSignal: (event) {
+              if (event is PointerScrollEvent) _onWheelScroll(event);
+            },
+            child: SizedBox(
+              width: W,
+              height: H,
+              child: SingleChildScrollView(
+                controller: _scrollCtrl,
+                scrollDirection: Axis.horizontal,
+                physics: const ClampingScrollPhysics(),
+                child: SizedBox(
+                  height: H,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: sidePad),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        for (int i = 0; i < pageCount; i++) ...[
+                          if (i > 0) SizedBox(width: _kPageGap),
+                          _buildPageCell(i),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          ),
+
+          // Left + button — fixed in viewport, centred in the gap left of the page
+          Positioned(
+            left: btnLeftX,
+            top: btnY,
+            width: _kAddBtnSize,
+            height: _kAddBtnSize,
+            child: _AddPageButton(onTap: widget.onInsertPageBefore),
+          ),
+
+          // Right + button — fixed in viewport, centred in the gap right of the page
+          Positioned(
+            left: btnRightX,
+            top: btnY,
+            width: _kAddBtnSize,
+            height: _kAddBtnSize,
+            child: _AddPageButton(onTap: widget.onInsertPageAfter),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _AddPageButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _AddPageButton({required this.onTap});
+
+  @override
+  State<_AddPageButton> createState() => _AddPageButtonState();
+}
+
+class _AddPageButtonState extends State<_AddPageButton> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _hovered ? const Color(0xFF4A90D9) : Colors.white,
+            border: Border.all(
+              color:
+                  _hovered ? const Color(0xFF4A90D9) : const Color(0xFFBBBBBB),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.add,
+            size: 20,
+            color: _hovered ? Colors.white : const Color(0xFF888888),
+          ),
+        ),
+      ),
+    );
+  }
+}

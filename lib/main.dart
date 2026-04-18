@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'models/practice_sheet.dart';
-import 'widgets/practice_sheet_widget.dart';
+import 'models/practice_document.dart';
+import 'widgets/page_navigator_widget.dart';
 import 'services/file_service.dart';
 import 'services/pdf_service.dart';
 
@@ -33,22 +33,46 @@ class EditorPage extends StatefulWidget {
 }
 
 class _EditorPageState extends State<EditorPage> {
-  PracticeSheet _sheet = PracticeSheet();
+  PracticeDocument _document = PracticeDocument();
   final _fileService = FileService();
   final _pdfService = PdfService();
   bool _busy = false;
 
-  void _toggleKey(int measure, int keyboard, int semitone) {
-    setState(() {
-      _sheet.toggle(measure, keyboard, semitone);
-    });
+  void _toggleKey(int slotIdx, int keyboard, int semitone) {
+    setState(() => _document.currentPage.toggle(slotIdx, keyboard, semitone));
+  }
+
+  void _addMeasure(int slotIdx) {
+    setState(() => _document = _document.withCurrentPageUpdated(
+          _document.currentPage.withSlotAdded(slotIdx),
+        ));
+  }
+
+  void _deleteMeasure(int slotIdx) {
+    setState(() => _document = _document.withCurrentPageUpdated(
+          _document.currentPage.withSlotRemoved(slotIdx),
+        ));
+  }
+
+  void _goToPage(int index) {
+    setState(() => _document = _document.withCurrentPageIndex(index));
+  }
+
+  void _insertPageBefore() {
+    setState(() => _document =
+        _document.withPageInsertedBefore(_document.currentPageIndex));
+  }
+
+  void _insertPageAfter() {
+    setState(() => _document =
+        _document.withPageInsertedAfter(_document.currentPageIndex));
   }
 
   Future<void> _save() async {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final path = await _fileService.saveSheet(_sheet);
+      final path = await _fileService.saveDocument(_document);
       if (path != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Saved to $path')),
@@ -56,9 +80,8 @@ class _EditorPageState extends State<EditorPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Save failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -69,15 +92,12 @@ class _EditorPageState extends State<EditorPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      final loaded = await _fileService.loadSheet();
-      if (loaded != null && mounted) {
-        setState(() => _sheet = loaded);
-      }
+      final loaded = await _fileService.loadDocument();
+      if (loaded != null && mounted) setState(() => _document = loaded);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Load failed: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Load failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -88,28 +108,24 @@ class _EditorPageState extends State<EditorPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await _pdfService.printOrExport(_sheet);
+      await _pdfService.printOrExport(_document.currentPage);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Print failed: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  void _addMeasure(int slotIdx) {
-    setState(() => _sheet = _sheet.withSlotAdded(slotIdx));
-  }
+  void _clear() => setState(() => _document = PracticeDocument());
 
-  void _deleteMeasure(int slotIdx) {
-    setState(() => _sheet = _sheet.withSlotRemoved(slotIdx));
-  }
-
-  void _clear() {
-    setState(() => _sheet = PracticeSheet());
+  String get _pageLabel {
+    final total = _document.pages.length;
+    return total > 1
+        ? 'Page ${_document.currentPageIndex + 1} of $total'
+        : 'Keyboard Practice Editor';
   }
 
   @override
@@ -117,7 +133,7 @@ class _EditorPageState extends State<EditorPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFE8E8E8),
       appBar: AppBar(
-        title: const Text('Keyboard Practice Editor'),
+        title: Text(_pageLabel),
         backgroundColor: const Color(0xFF2C5F8A),
         foregroundColor: Colors.white,
         actions: [
@@ -134,10 +150,8 @@ class _EditorPageState extends State<EditorPage> {
           TextButton.icon(
             onPressed: _busy ? null : _print,
             icon: const Icon(Icons.print, color: Colors.white70),
-            label: const Text(
-              'Print / Export PDF',
-              style: TextStyle(color: Colors.white70),
-            ),
+            label: const Text('Print / Export PDF',
+                style: TextStyle(color: Colors.white70)),
           ),
           TextButton.icon(
             onPressed: _busy ? null : _clear,
@@ -152,29 +166,20 @@ class _EditorPageState extends State<EditorPage> {
                   width: 18,
                   height: 18,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
+                      strokeWidth: 2, color: Colors.white),
                 ),
               ),
             ),
         ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: PracticeSheetWidget(
-                sheet: _sheet,
-                onKeyTap: _toggleKey,
-                onAddMeasure: _addMeasure,
-                onDeleteMeasure: _deleteMeasure,
-              ),
-            ),
-          ),
-        ),
+      body: PageNavigatorWidget(
+        document: _document,
+        onKeyTap: _toggleKey,
+        onAddMeasure: _addMeasure,
+        onDeleteMeasure: _deleteMeasure,
+        onGoToPage: _goToPage,
+        onInsertPageBefore: _insertPageBefore,
+        onInsertPageAfter: _insertPageAfter,
       ),
     );
   }

@@ -1,9 +1,9 @@
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
-import '../models/practice_sheet.dart';
+import '../models/practice_document.dart';
 
 class FileService {
-  Future<String?> saveSheet(PracticeSheet sheet) async {
+  Future<String?> saveDocument(PracticeDocument doc) async {
     final String? path = await FilePicker.platform.saveFile(
       dialogTitle: 'Save Practice Sheet',
       fileName: 'practice_sheet.json',
@@ -12,11 +12,11 @@ class FileService {
     );
     if (path == null) return null;
     final file = File(path);
-    await file.writeAsString(sheet.toJsonString());
+    await file.writeAsString(doc.toJsonString());
     return path;
   }
 
-  Future<PracticeSheet?> loadSheet() async {
+  Future<PracticeDocument?> loadDocument() async {
     final FilePickerResult? result = await FilePicker.platform.pickFiles(
       dialogTitle: 'Load Practice Sheet',
       type: FileType.custom,
@@ -25,6 +25,6 @@ class FileService {
     if (result == null || result.files.single.path == null) return null;
     final file = File(result.files.single.path!);
     final contents = await file.readAsString();
-    return PracticeSheet.fromJsonString(contents);
+    return PracticeDocument.fromJsonString(contents);
   }
 }
