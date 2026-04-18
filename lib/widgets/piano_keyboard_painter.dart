@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import '../models/practice_sheet.dart';
 
 const Color kHighlightColor = Color(0xFF4A90D9);
+const Color kHoverColor = Color(0xFFD6E8FA);
 const Color kBlackKeyBorderColor = Color(0xFF222222);
 const Color kWhiteKeyBorderColor = Color(0xFF888888);
 
 class PianoKeyboardPainter extends CustomPainter {
-  final List<bool> activeKeys; // length kSemitones
+  final List<bool> activeKeys;
+  final int? hoveredSemitone;
   final bool isForPdf;
 
-  PianoKeyboardPainter({required this.activeKeys, this.isForPdf = false});
+  PianoKeyboardPainter({
+    required this.activeKeys,
+    this.hoveredSemitone,
+    this.isForPdf = false,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -32,10 +38,11 @@ class PianoKeyboardPainter extends CustomPainter {
     for (int i = 0; i < whiteKeyOrder.length; i++) {
       final int semi = whiteKeyOrder[i];
       final bool active = activeKeys[semi];
+      final bool hovered = hoveredSemitone == semi;
       final Rect rect = Rect.fromLTWH(i * whiteW, 0, whiteW, whiteH);
 
       final fillPaint = Paint()
-        ..color = active ? kHighlightColor : Colors.white
+        ..color = active ? kHighlightColor : (hovered ? kHoverColor : Colors.white)
         ..style = PaintingStyle.fill;
       canvas.drawRect(rect, fillPaint);
 
@@ -70,12 +77,12 @@ class PianoKeyboardPainter extends CustomPainter {
 
     for (final (semi, leftWhiteIdx) in blackKeyDefs) {
       final bool active = activeKeys[semi];
-      // Center black key between left and right white keys
+      final bool hovered = hoveredSemitone == semi;
       final double cx = (leftWhiteIdx + 1) * whiteW;
       final double x = cx - blackW / 2;
 
       final fillPaint = Paint()
-        ..color = active ? kHighlightColor : Colors.white
+        ..color = active ? kHighlightColor : (hovered ? kHoverColor : Colors.white)
         ..style = PaintingStyle.fill;
 
       final rect = Rect.fromLTWH(x, 0, blackW, blackH);
@@ -98,12 +105,12 @@ class PianoKeyboardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(PianoKeyboardPainter old) =>
-      old.activeKeys != activeKeys ||
+      old.hoveredSemitone != hoveredSemitone ||
       List.generate(kSemitones, (i) => old.activeKeys[i] != activeKeys[i])
           .any((v) => v);
 }
 
-class PianoKeyboardWidget extends StatelessWidget {
+class PianoKeyboardWidget extends StatefulWidget {
   final List<bool> activeKeys;
   final void Function(int semitone) onKeyTap;
 
@@ -114,48 +121,64 @@ class PianoKeyboardWidget extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double w = constraints.maxWidth;
-        final double h = constraints.maxHeight;
-        return GestureDetector(
-          onTapDown: (details) => _handleTap(details.localPosition, w, h),
-          child: CustomPaint(
-            size: Size(w, h),
-            painter: PianoKeyboardPainter(activeKeys: activeKeys),
-          ),
-        );
-      },
-    );
-  }
+  State<PianoKeyboardWidget> createState() => _PianoKeyboardWidgetState();
+}
 
-  void _handleTap(Offset pos, double width, double height) {
+class _PianoKeyboardWidgetState extends State<PianoKeyboardWidget> {
+  int? _hoveredSemitone;
+  double _w = 0;
+  double _h = 0;
+
+  static const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
+  static const blackKeyDefs = [
+    (1, 0), (3, 1), (6, 3), (8, 4), (10, 5),
+    (13, 7), (15, 8), (18, 10), (20, 11), (22, 12),
+  ];
+
+  int? _semitoneAt(Offset pos) {
     const int whiteKeyCount = 14;
-    final double whiteW = width / whiteKeyCount;
+    final double whiteW = _w / whiteKeyCount;
     final double blackW = whiteW * 0.6;
-    final double blackH = height * 0.62;
+    final double blackH = _h * 0.62;
 
-    const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
-    final blackKeyDefs = [
-      (1, 0), (3, 1), (6, 3), (8, 4), (10, 5),
-      (13, 7), (15, 8), (18, 10), (20, 11), (22, 12),
-    ];
-
-    // Check black keys first (they render on top)
     if (pos.dy < blackH) {
       for (final (semi, leftWhiteIdx) in blackKeyDefs) {
         final double cx = (leftWhiteIdx + 1) * whiteW;
         final double x = cx - blackW / 2;
-        if (pos.dx >= x && pos.dx <= x + blackW) {
-          onKeyTap(semi);
-          return;
-        }
+        if (pos.dx >= x && pos.dx <= x + blackW) return semi;
       }
     }
-
-    // White key hit
     final int whiteIdx = (pos.dx / whiteW).floor().clamp(0, whiteKeyCount - 1);
-    onKeyTap(whiteKeyOrder[whiteIdx]);
+    return whiteKeyOrder[whiteIdx];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _w = constraints.maxWidth;
+        _h = constraints.maxHeight;
+        return MouseRegion(
+          onHover: (event) {
+            final semi = _semitoneAt(event.localPosition);
+            if (semi != _hoveredSemitone) setState(() => _hoveredSemitone = semi);
+          },
+          onExit: (_) => setState(() => _hoveredSemitone = null),
+          child: GestureDetector(
+            onTapDown: (details) {
+              final semi = _semitoneAt(details.localPosition);
+              if (semi != null) widget.onKeyTap(semi);
+            },
+            child: CustomPaint(
+              size: Size(_w, _h),
+              painter: PianoKeyboardPainter(
+                activeKeys: widget.activeKeys,
+                hoveredSemitone: _hoveredSemitone,
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
