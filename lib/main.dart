@@ -100,6 +100,11 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
+  void _addMeasure() {
+    final next = (_sheet.activeMeasureCount + 1).clamp(1, kMeasureCount);
+    setState(() => _sheet = _sheet.withActiveMeasureCount(next));
+  }
+
   void _clear() {
     setState(() => _sheet = PracticeSheet());
   }
@@ -161,6 +166,7 @@ class _EditorPageState extends State<EditorPage> {
               child: PracticeSheetWidget(
                 sheet: _sheet,
                 onKeyTap: _toggleKey,
+                onAddMeasure: _addMeasure,
               ),
             ),
           ),

@@ -24,8 +24,9 @@ bool isBlackKey(int semitone) {
 class PracticeSheet {
   // [measure][keyboard][semitone] = active?
   final List<List<List<bool>>> state;
+  final int activeMeasureCount;
 
-  PracticeSheet()
+  PracticeSheet({this.activeMeasureCount = 1})
       : state = List.generate(
           kMeasureCount,
           (_) => List.generate(
@@ -34,13 +35,17 @@ class PracticeSheet {
           ),
         );
 
-  PracticeSheet.fromState(this.state);
+  PracticeSheet.fromState(this.state, {this.activeMeasureCount = 1});
 
   void toggle(int measure, int keyboard, int semitone) {
     state[measure][keyboard][semitone] = !state[measure][keyboard][semitone];
   }
 
+  PracticeSheet withActiveMeasureCount(int count) =>
+      PracticeSheet.fromState(state, activeMeasureCount: count);
+
   Map<String, dynamic> toJson() => {
+        'activeMeasureCount': activeMeasureCount,
         'state': state
             .map((m) => m.map((k) => k.map((v) => v ? 1 : 0).toList()).toList())
             .toList(),
@@ -58,22 +63,12 @@ class PracticeSheet {
         ),
       ),
     );
-    return PracticeSheet.fromState(s);
+    final count = (json['activeMeasureCount'] as int?) ?? kMeasureCount;
+    return PracticeSheet.fromState(s, activeMeasureCount: count);
   }
 
   String toJsonString() => jsonEncode(toJson());
 
   factory PracticeSheet.fromJsonString(String s) =>
       PracticeSheet.fromJson(jsonDecode(s) as Map<String, dynamic>);
-
-  PracticeSheet copyWith() {
-    final newState = List.generate(
-      kMeasureCount,
-      (mi) => List.generate(
-        kKeyboardsPerMeasure,
-        (ki) => List<bool>.from(state[mi][ki]),
-      ),
-    );
-    return PracticeSheet.fromState(newState);
-  }
 }
