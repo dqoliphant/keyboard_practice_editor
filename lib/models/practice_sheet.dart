@@ -22,12 +22,15 @@ bool isBlackKey(int semitone) {
 }
 
 class PracticeSheet {
-  // [measure][keyboard][semitone] = active?
+  // [slot][keyboard][semitone] = active? — always 12 slots allocated
   final List<List<List<bool>>> state;
-  final int activeMeasureCount;
 
-  PracticeSheet({this.activeMeasureCount = 1})
-      : state = List.generate(
+  // Which of the 12 grid slots are occupied (have a visible measure)
+  final Set<int> occupiedSlots;
+
+  PracticeSheet({Set<int>? occupiedSlots})
+      : occupiedSlots = occupiedSlots ?? {0},
+        state = List.generate(
           kMeasureCount,
           (_) => List.generate(
             kKeyboardsPerMeasure,
@@ -35,17 +38,46 @@ class PracticeSheet {
           ),
         );
 
-  PracticeSheet.fromState(this.state, {this.activeMeasureCount = 1});
+  PracticeSheet.fromState(this.state, {required Set<int> occupiedSlots})
+      : occupiedSlots = Set.unmodifiable(occupiedSlots);
 
-  void toggle(int measure, int keyboard, int semitone) {
-    state[measure][keyboard][semitone] = !state[measure][keyboard][semitone];
+  void toggle(int slotIdx, int keyboard, int semitone) {
+    state[slotIdx][keyboard][semitone] = !state[slotIdx][keyboard][semitone];
   }
 
-  PracticeSheet withActiveMeasureCount(int count) =>
-      PracticeSheet.fromState(state, activeMeasureCount: count);
+  /// Display number for an occupied slot (1-based rank among occupied slots).
+  int measureNumberForSlot(int slotIdx) {
+    final sorted = occupiedSlots.toList()..sort();
+    return sorted.indexOf(slotIdx) + 1;
+  }
+
+  /// First grid slot (0–11) that is not occupied, or -1 if all full.
+  int get firstUnoccupiedSlot {
+    for (int i = 0; i < kMeasureCount; i++) {
+      if (!occupiedSlots.contains(i)) return i;
+    }
+    return -1;
+  }
+
+  PracticeSheet withSlotAdded(int slotIdx) {
+    // Clear that slot's key state so it starts fresh
+    final newState = List.generate(
+      kMeasureCount,
+      (mi) => List.generate(
+        kKeyboardsPerMeasure,
+        (ki) => mi == slotIdx
+            ? List.filled(kSemitones, false)
+            : List<bool>.from(state[mi][ki]),
+      ),
+    );
+    return PracticeSheet.fromState(
+      newState,
+      occupiedSlots: {...occupiedSlots, slotIdx},
+    );
+  }
 
   Map<String, dynamic> toJson() => {
-        'activeMeasureCount': activeMeasureCount,
+        'occupiedSlots': (occupiedSlots.toList()..sort()),
         'state': state
             .map((m) => m.map((k) => k.map((v) => v ? 1 : 0).toList()).toList())
             .toList(),
@@ -63,8 +95,10 @@ class PracticeSheet {
         ),
       ),
     );
-    final count = (json['activeMeasureCount'] as int?) ?? kMeasureCount;
-    return PracticeSheet.fromState(s, activeMeasureCount: count);
+    final slots = json['occupiedSlots'] != null
+        ? Set<int>.from((json['occupiedSlots'] as List).cast<int>())
+        : Set<int>.from(List.generate(kMeasureCount, (i) => i));
+    return PracticeSheet.fromState(s, occupiedSlots: slots);
   }
 
   String toJsonString() => jsonEncode(toJson());

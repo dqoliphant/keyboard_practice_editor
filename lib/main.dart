@@ -100,9 +100,8 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
-  void _addMeasure() {
-    final next = (_sheet.activeMeasureCount + 1).clamp(1, kMeasureCount);
-    setState(() => _sheet = _sheet.withActiveMeasureCount(next));
+  void _addMeasure(int slotIdx) {
+    setState(() => _sheet = _sheet.withSlotAdded(slotIdx));
   }
 
   void _clear() {

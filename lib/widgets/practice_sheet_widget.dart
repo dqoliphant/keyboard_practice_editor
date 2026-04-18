@@ -9,8 +9,8 @@ const double kSheetPadding = 20.0;
 
 class PracticeSheetWidget extends StatelessWidget {
   final PracticeSheet sheet;
-  final void Function(int measure, int keyboard, int semitone) onKeyTap;
-  final VoidCallback onAddMeasure;
+  final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
+  final void Function(int slotIdx) onAddMeasure;
 
   const PracticeSheetWidget({
     super.key,
@@ -19,19 +19,19 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.onAddMeasure,
   });
 
-  Widget _cellForIndex(int idx) {
-    final active = sheet.activeMeasureCount;
-    if (idx < active) {
+  Widget _cellForSlot(int slotIdx) {
+    if (sheet.occupiedSlots.contains(slotIdx)) {
       return MeasureWidget(
-        measureNumber: idx + 1,
-        keyboards: sheet.state[idx],
-        onKeyTap: (kb, semi) => onKeyTap(idx, kb, semi),
+        measureNumber: sheet.measureNumberForSlot(slotIdx),
+        keyboards: sheet.state[slotIdx],
+        onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
       );
     }
-    if (idx == active && active < kMeasureCount) {
-      return _AddMeasureCell(onTap: onAddMeasure);
-    }
-    return const SizedBox.expand();
+    final persistent = slotIdx == sheet.firstUnoccupiedSlot;
+    return _EmptySlotCell(
+      persistent: persistent,
+      onTap: () => onAddMeasure(slotIdx),
+    );
   }
 
   List<Widget> _buildRows() {
@@ -43,7 +43,7 @@ class PracticeSheetWidget extends StatelessWidget {
       final cells = <Widget>[];
       for (int col = 0; col < 4; col++) {
         if (col > 0) cells.add(const SizedBox(width: colGap));
-        cells.add(Expanded(child: _cellForIndex(row * 4 + col)));
+        cells.add(Expanded(child: _cellForSlot(row * 4 + col)));
       }
       rows.add(Expanded(
         child: Row(
@@ -71,41 +71,58 @@ class PracticeSheetWidget extends StatelessWidget {
   }
 }
 
-class _AddMeasureCell extends StatefulWidget {
+/// An unoccupied grid slot.
+/// [persistent] = true  → always shows the + button (the first empty slot).
+/// [persistent] = false → shows + only on hover.
+class _EmptySlotCell extends StatefulWidget {
+  final bool persistent;
   final VoidCallback onTap;
-  const _AddMeasureCell({required this.onTap});
+
+  const _EmptySlotCell({required this.persistent, required this.onTap});
 
   @override
-  State<_AddMeasureCell> createState() => _AddMeasureCellState();
+  State<_EmptySlotCell> createState() => _EmptySlotCellState();
 }
 
-class _AddMeasureCellState extends State<_AddMeasureCell> {
+class _EmptySlotCellState extends State<_EmptySlotCell> {
   bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
+    final bool show = widget.persistent || _hovered;
+
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: show ? widget.onTap : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          decoration: BoxDecoration(
-            color: _hovered ? const Color(0xFFEDF4FC) : const Color(0xFFF7F7F7),
-            border: Border.all(
-              color: _hovered ? const Color(0xFF4A90D9) : const Color(0xFFCCCCCC),
-              width: 1.0,
-            ),
-            borderRadius: BorderRadius.circular(2),
-          ),
-          child: Center(
-            child: Icon(
-              Icons.add_circle_outline,
-              size: 32,
-              color: _hovered ? const Color(0xFF4A90D9) : const Color(0xFFBBBBBB),
-            ),
-          ),
+          decoration: show
+              ? BoxDecoration(
+                  color: _hovered
+                      ? const Color(0xFFEDF4FC)
+                      : const Color(0xFFF7F7F7),
+                  border: Border.all(
+                    color: _hovered
+                        ? const Color(0xFF4A90D9)
+                        : const Color(0xFFCCCCCC),
+                    width: 1.0,
+                  ),
+                  borderRadius: BorderRadius.circular(2),
+                )
+              : const BoxDecoration(color: Colors.transparent),
+          child: show
+              ? Center(
+                  child: Icon(
+                    Icons.add_circle_outline,
+                    size: 32,
+                    color: _hovered
+                        ? const Color(0xFF4A90D9)
+                        : const Color(0xFFBBBBBB),
+                  ),
+                )
+              : const SizedBox.expand(),
         ),
       ),
     );
