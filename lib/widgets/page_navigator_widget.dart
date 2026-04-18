@@ -88,7 +88,10 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
     if (!_scrollCtrl.hasClients) return;
     final maxIdx = widget.document.pages.length - 1;
     final newIdx = (_scrollCtrl.offset / _pageStride).round().clamp(0, maxIdx);
-    if (newIdx != _focusedIdx) setState(() => _focusedIdx = newIdx);
+    if (newIdx != _focusedIdx) {
+      setState(() => _focusedIdx = newIdx);
+      widget.onGoToPage(newIdx);
+    }
   }
 
   void _scrollToPage(int idx) {
