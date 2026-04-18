@@ -16,6 +16,8 @@ class PageNavigatorWidget extends StatefulWidget {
   final void Function(int pageIndex) onGoToPage;
   final VoidCallback onInsertPageBefore;
   final VoidCallback onInsertPageAfter;
+  final void Function(String) onSongTitleChanged;
+  final void Function(String) onSectionLabelChanged;
 
   const PageNavigatorWidget({
     super.key,
@@ -26,6 +28,8 @@ class PageNavigatorWidget extends StatefulWidget {
     required this.onGoToPage,
     required this.onInsertPageBefore,
     required this.onInsertPageAfter,
+    required this.onSongTitleChanged,
+    required this.onSectionLabelChanged,
   });
 
   @override
@@ -134,12 +138,16 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
 
   Widget _buildPageCell(int i) {
     final sheet = widget.document.pages[i];
+    final songTitle = widget.document.songTitle;
     if (i == _focusedIdx) {
       return PracticeSheetWidget(
         sheet: sheet,
+        songTitle: songTitle,
         onKeyTap: widget.onKeyTap,
         onAddMeasure: widget.onAddMeasure,
         onDeleteMeasure: widget.onDeleteMeasure,
+        onSongTitleChanged: widget.onSongTitleChanged,
+        onSectionLabelChanged: widget.onSectionLabelChanged,
       );
     }
     return GestureDetector(
@@ -148,9 +156,12 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
       child: IgnorePointer(
         child: PracticeSheetWidget(
           sheet: sheet,
+          songTitle: songTitle,
           onKeyTap: (a, b, c) {},
           onAddMeasure: (a) {},
           onDeleteMeasure: (a) {},
+          onSongTitleChanged: (_) {},
+          onSectionLabelChanged: (_) {},
         ),
       ),
     );

@@ -28,7 +28,9 @@ class PracticeSheet {
   // Which of the 12 grid slots are occupied (have a visible measure)
   final Set<int> occupiedSlots;
 
-  PracticeSheet({Set<int>? occupiedSlots})
+  final String sectionLabel;
+
+  PracticeSheet({Set<int>? occupiedSlots, this.sectionLabel = ''})
       : occupiedSlots = occupiedSlots ?? {0},
         state = List.generate(
           kMeasureCount,
@@ -38,7 +40,8 @@ class PracticeSheet {
           ),
         );
 
-  PracticeSheet.fromState(this.state, {required Set<int> occupiedSlots})
+  PracticeSheet.fromState(this.state,
+      {required Set<int> occupiedSlots, this.sectionLabel = ''})
       : occupiedSlots = Set.unmodifiable(occupiedSlots);
 
   void toggle(int slotIdx, int keyboard, int semitone) {
@@ -59,13 +62,15 @@ class PracticeSheet {
     return -1;
   }
 
+  PracticeSheet withSectionLabel(String label) =>
+      PracticeSheet.fromState(state, occupiedSlots: occupiedSlots, sectionLabel: label);
+
   PracticeSheet withSlotRemoved(int slotIdx) {
     final newSlots = Set<int>.from(occupiedSlots)..remove(slotIdx);
-    return PracticeSheet.fromState(state, occupiedSlots: newSlots);
+    return PracticeSheet.fromState(state, occupiedSlots: newSlots, sectionLabel: sectionLabel);
   }
 
   PracticeSheet withSlotAdded(int slotIdx) {
-    // Clear that slot's key state so it starts fresh
     final newState = List.generate(
       kMeasureCount,
       (mi) => List.generate(
@@ -78,11 +83,13 @@ class PracticeSheet {
     return PracticeSheet.fromState(
       newState,
       occupiedSlots: {...occupiedSlots, slotIdx},
+      sectionLabel: sectionLabel,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'occupiedSlots': (occupiedSlots.toList()..sort()),
+        'sectionLabel': sectionLabel,
         'state': state
             .map((m) => m.map((k) => k.map((v) => v ? 1 : 0).toList()).toList())
             .toList(),
@@ -103,7 +110,9 @@ class PracticeSheet {
     final slots = json['occupiedSlots'] != null
         ? Set<int>.from((json['occupiedSlots'] as List).cast<int>())
         : Set<int>.from(List.generate(kMeasureCount, (i) => i));
-    return PracticeSheet.fromState(s, occupiedSlots: slots);
+    return PracticeSheet.fromState(s,
+        occupiedSlots: slots,
+        sectionLabel: json['sectionLabel'] as String? ?? '');
   }
 
   String toJsonString() => jsonEncode(toJson());

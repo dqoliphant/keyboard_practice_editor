@@ -6,19 +6,26 @@ import 'measure_widget.dart';
 const double kSheetWidth = 1056.0;
 const double kSheetHeight = 816.0;
 const double kSheetPadding = 20.0;
+const double kSheetHeaderHeight = 60.0;
 
 class PracticeSheetWidget extends StatelessWidget {
   final PracticeSheet sheet;
+  final String songTitle;
   final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
+  final void Function(String) onSongTitleChanged;
+  final void Function(String) onSectionLabelChanged;
 
   const PracticeSheetWidget({
     super.key,
     required this.sheet,
+    required this.songTitle,
     required this.onKeyTap,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
+    required this.onSongTitleChanged,
+    required this.onSectionLabelChanged,
   });
 
   Widget _cellForSlot(int slotIdx) {
@@ -67,12 +74,156 @@ class PracticeSheetWidget extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(kSheetPadding),
         child: Column(
-          children: _buildRows(),
+          children: [
+            _SheetHeaderWidget(
+              songTitle: songTitle,
+              sectionLabel: sheet.sectionLabel,
+              onSongTitleChanged: onSongTitleChanged,
+              onSectionLabelChanged: onSectionLabelChanged,
+            ),
+            ..._buildRows(),
+          ],
         ),
       ),
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+
+class _SheetHeaderWidget extends StatefulWidget {
+  final String songTitle;
+  final String sectionLabel;
+  final void Function(String) onSongTitleChanged;
+  final void Function(String) onSectionLabelChanged;
+
+  const _SheetHeaderWidget({
+    required this.songTitle,
+    required this.sectionLabel,
+    required this.onSongTitleChanged,
+    required this.onSectionLabelChanged,
+  });
+
+  @override
+  State<_SheetHeaderWidget> createState() => _SheetHeaderWidgetState();
+}
+
+class _SheetHeaderWidgetState extends State<_SheetHeaderWidget> {
+  late final TextEditingController _titleCtrl;
+  late final TextEditingController _sectionCtrl;
+  final FocusNode _titleFocus = FocusNode();
+  final FocusNode _sectionFocus = FocusNode();
+  bool _hovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleCtrl = TextEditingController(text: widget.songTitle);
+    _sectionCtrl = TextEditingController(text: widget.sectionLabel);
+    _titleFocus.addListener(() => setState(() {}));
+    _sectionFocus.addListener(() => setState(() {}));
+  }
+
+  @override
+  void didUpdateWidget(_SheetHeaderWidget old) {
+    super.didUpdateWidget(old);
+    if (widget.songTitle != _titleCtrl.text) _titleCtrl.text = widget.songTitle;
+    if (widget.sectionLabel != _sectionCtrl.text) _sectionCtrl.text = widget.sectionLabel;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _sectionCtrl.dispose();
+    _titleFocus.dispose();
+    _sectionFocus.dispose();
+    super.dispose();
+  }
+
+  bool get _showTitle =>
+      widget.songTitle.isNotEmpty || _titleFocus.hasFocus || _hovered;
+  bool get _showSection =>
+      widget.sectionLabel.isNotEmpty || _sectionFocus.hasFocus || _hovered;
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+
+    if (_showTitle) {
+      children.add(TextField(
+        controller: _titleCtrl,
+        focusNode: _titleFocus,
+        textAlign: TextAlign.center,
+        onChanged: widget.onSongTitleChanged,
+        style: const TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF333333),
+          height: 1.2,
+        ),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          hintText: 'Song Title',
+          hintStyle: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFCCCCCC),
+            height: 1.2,
+          ),
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ));
+    }
+
+    if (_showTitle && _showSection) children.add(const SizedBox(height: 4));
+
+    if (_showSection) {
+      children.add(TextField(
+        controller: _sectionCtrl,
+        focusNode: _sectionFocus,
+        textAlign: TextAlign.center,
+        onChanged: widget.onSectionLabelChanged,
+        style: const TextStyle(
+          fontSize: 13,
+          fontStyle: FontStyle.italic,
+          color: Color(0xFF666666),
+          height: 1.2,
+        ),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          hintText: 'Section',
+          hintStyle: TextStyle(
+            fontSize: 13,
+            fontStyle: FontStyle.italic,
+            color: Color(0xFFCCCCCC),
+            height: 1.2,
+          ),
+          isDense: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+      ));
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: SizedBox(
+        height: kSheetHeaderHeight,
+        child: Center(
+          child: children.isEmpty
+              ? const SizedBox.shrink()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: children,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 
 /// An unoccupied grid slot.
 /// [persistent] = true  → always shows the + button (the first empty slot).

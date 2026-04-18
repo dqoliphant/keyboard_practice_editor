@@ -68,6 +68,16 @@ class _EditorPageState extends State<EditorPage> {
         _document.withPageInsertedAfter(_document.currentPageIndex));
   }
 
+  void _updateSongTitle(String title) {
+    setState(() => _document = _document.withSongTitle(title));
+  }
+
+  void _updateSectionLabel(String label) {
+    setState(() => _document = _document.withCurrentPageUpdated(
+          _document.currentPage.withSectionLabel(label),
+        ));
+  }
+
   Future<void> _save() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -180,6 +190,8 @@ class _EditorPageState extends State<EditorPage> {
         onGoToPage: _goToPage,
         onInsertPageBefore: _insertPageBefore,
         onInsertPageAfter: _insertPageAfter,
+        onSongTitleChanged: _updateSongTitle,
+        onSectionLabelChanged: _updateSectionLabel,
       ),
     );
   }
