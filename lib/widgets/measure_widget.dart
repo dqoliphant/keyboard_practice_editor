@@ -6,17 +6,34 @@ class MeasureWidget extends StatelessWidget {
   final int measureNumber;
   final List<List<bool>> keyboards; // [2][24]
   final void Function(int keyboardIdx, int semitone) onKeyTap;
+  final VoidCallback onDelete;
 
   const MeasureWidget({
     super.key,
     required this.measureNumber,
     required this.keyboards,
     required this.onKeyTap,
+    required this.onDelete,
   });
+
+  void _showContextMenu(BuildContext context, Offset globalPos) async {
+    final result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPos.dx, globalPos.dy, globalPos.dx, globalPos.dy,
+      ),
+      items: const [
+        PopupMenuItem(value: 'delete', child: Text('Delete measure')),
+      ],
+    );
+    if (result == 'delete') onDelete();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _showContextMenu(context, d.globalPosition),
+      child: Container(
       decoration: BoxDecoration(
         border: Border.all(color: const Color(0xFF444444), width: 0.5),
       ),
@@ -70,6 +87,6 @@ class MeasureWidget extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ));
   }
 }

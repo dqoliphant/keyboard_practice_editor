@@ -11,12 +11,14 @@ class PracticeSheetWidget extends StatelessWidget {
   final PracticeSheet sheet;
   final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
   final void Function(int slotIdx) onAddMeasure;
+  final void Function(int slotIdx) onDeleteMeasure;
 
   const PracticeSheetWidget({
     super.key,
     required this.sheet,
     required this.onKeyTap,
     required this.onAddMeasure,
+    required this.onDeleteMeasure,
   });
 
   Widget _cellForSlot(int slotIdx) {
@@ -25,6 +27,7 @@ class PracticeSheetWidget extends StatelessWidget {
         measureNumber: sheet.measureNumberForSlot(slotIdx),
         keyboards: sheet.state[slotIdx],
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
+        onDelete: () => onDeleteMeasure(slotIdx),
       );
     }
     final persistent = slotIdx == sheet.firstUnoccupiedSlot;

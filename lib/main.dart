@@ -104,6 +104,10 @@ class _EditorPageState extends State<EditorPage> {
     setState(() => _sheet = _sheet.withSlotAdded(slotIdx));
   }
 
+  void _deleteMeasure(int slotIdx) {
+    setState(() => _sheet = _sheet.withSlotRemoved(slotIdx));
+  }
+
   void _clear() {
     setState(() => _sheet = PracticeSheet());
   }
@@ -166,6 +170,7 @@ class _EditorPageState extends State<EditorPage> {
                 sheet: _sheet,
                 onKeyTap: _toggleKey,
                 onAddMeasure: _addMeasure,
+                onDeleteMeasure: _deleteMeasure,
               ),
             ),
           ),

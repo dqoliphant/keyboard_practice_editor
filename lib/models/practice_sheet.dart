@@ -59,6 +59,11 @@ class PracticeSheet {
     return -1;
   }
 
+  PracticeSheet withSlotRemoved(int slotIdx) {
+    final newSlots = Set<int>.from(occupiedSlots)..remove(slotIdx);
+    return PracticeSheet.fromState(state, occupiedSlots: newSlots);
+  }
+
   PracticeSheet withSlotAdded(int slotIdx) {
     // Clear that slot's key state so it starts fresh
     final newState = List.generate(
