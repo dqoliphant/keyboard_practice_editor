@@ -53,7 +53,23 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
   void didUpdateWidget(PageNavigatorWidget old) {
     super.didUpdateWidget(old);
     final newIdx = widget.document.currentPageIndex;
-    if (newIdx != _focusedIdx) {
+    final insertedBefore = widget.document.pages.length == old.document.pages.length + 1 &&
+        newIdx == old.document.currentPageIndex &&
+        newIdx == _focusedIdx;
+
+    if (insertedBefore) {
+      final double target = _focusedIdx * _pageStride;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_scrollCtrl.hasClients) return;
+        final pos = _scrollCtrl.position;
+        _scrollCtrl.jumpTo((target + _pageStride).clamp(pos.minScrollExtent, pos.maxScrollExtent));
+        _scrollCtrl.animateTo(
+          target.clamp(pos.minScrollExtent, pos.maxScrollExtent),
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+        );
+      });
+    } else if (newIdx != _focusedIdx) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _scrollToPage(newIdx);
       });
@@ -71,12 +87,8 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
   void _onScroll() {
     if (!_scrollCtrl.hasClients) return;
     final maxIdx = widget.document.pages.length - 1;
-    final newIdx =
-        (_scrollCtrl.offset / _pageStride).round().clamp(0, maxIdx);
-    if (newIdx != _focusedIdx) {
-      setState(() => _focusedIdx = newIdx);
-      widget.onGoToPage(newIdx);
-    }
+    final newIdx = (_scrollCtrl.offset / _pageStride).round().clamp(0, maxIdx);
+    if (newIdx != _focusedIdx) setState(() => _focusedIdx = newIdx);
   }
 
   void _scrollToPage(int idx) {
