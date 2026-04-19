@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import 'models/practice_document.dart';
 import 'widgets/page_navigator_widget.dart';
 import 'services/file_service.dart';
@@ -121,18 +123,15 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _print() async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    try {
-      await _pdfService.print(_document);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Print failed: $e')));
-      }
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+    if (_busy || !mounted) return;
+    final document = _document;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _PrintPreviewDialog(
+        document: document,
+        pdfService: _pdfService,
+      ),
+    );
   }
 
   Future<void> _exportPdf() async {
@@ -222,6 +221,75 @@ class _EditorPageState extends State<EditorPage> {
         onSongTitleChanged: _updateSongTitle,
         onSectionLabelChanged: _updateSectionLabel,
         onChordSelected: _selectChord,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _PrintPreviewDialog extends StatelessWidget {
+  final PracticeDocument document;
+  final PdfService pdfService;
+
+  const _PrintPreviewDialog({
+    required this.document,
+    required this.pdfService,
+  });
+
+  static final _letterLandscape = PdfPageFormat(
+    11 * PdfPageFormat.inch,
+    8.5 * PdfPageFormat.inch,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final fileName = document.songTitle.isNotEmpty
+        ? '${document.songTitle}.pdf'
+        : 'practice_sheet.pdf';
+
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Header bar
+          Container(
+            color: const Color(0xFF2C5F8A),
+            padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+            child: Row(
+              children: [
+                const Text(
+                  'Print Preview',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+          ),
+          // Preview
+          Expanded(
+            child: PdfPreview(
+              build: (_) => pdfService.buildPdfBytes(document),
+              initialPageFormat: _letterLandscape,
+              allowPrinting: true,
+              allowSharing: false,
+              canChangePageFormat: false,
+              canChangeOrientation: false,
+              pdfFileName: fileName,
+            ),
+          ),
+        ],
       ),
     );
   }
