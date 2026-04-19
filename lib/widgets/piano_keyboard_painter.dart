@@ -4,7 +4,7 @@ import '../models/practice_sheet.dart';
 const Color kHighlightColor = Color(0xFF4A90D9);
 const Color kHoverColor = Color(0xFFD6E8FA);
 const Color kBlackKeyBorderColor = Color(0xFF222222);
-const Color kWhiteKeyBorderColor = Color(0xFF888888);
+const Color kWhiteKeyBorderColor = Color(0xFF000000);
 
 class PianoKeyboardPainter extends CustomPainter {
   final List<bool> activeKeys;

@@ -182,7 +182,7 @@ class PdfService {
                   child: pw.Container(
                     decoration: pw.BoxDecoration(
                       color: active ? PdfColors.blue400 : PdfColors.white,
-                      border: pw.Border.all(color: PdfColors.grey400, width: 0.3),
+                      border: pw.Border.all(color: PdfColors.black, width: 0.3),
                     ),
                   ),
                 );
