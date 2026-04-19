@@ -78,6 +78,12 @@ class _EditorPageState extends State<EditorPage> {
         ));
   }
 
+  void _selectChord(int slotIdx, String chord) {
+    setState(() => _document = _document.withCurrentPageUpdated(
+          _document.currentPage.withChordOverride(slotIdx, chord),
+        ));
+  }
+
   Future<void> _save() async {
     if (_busy) return;
     setState(() => _busy = true);
@@ -215,6 +221,7 @@ class _EditorPageState extends State<EditorPage> {
         onInsertPageAfter: _insertPageAfter,
         onSongTitleChanged: _updateSongTitle,
         onSectionLabelChanged: _updateSectionLabel,
+        onChordSelected: _selectChord,
       ),
     );
   }

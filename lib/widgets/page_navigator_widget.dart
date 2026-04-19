@@ -18,6 +18,7 @@ class PageNavigatorWidget extends StatefulWidget {
   final VoidCallback onInsertPageAfter;
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
+  final void Function(int slotIdx, String chord) onChordSelected;
 
   const PageNavigatorWidget({
     super.key,
@@ -30,6 +31,7 @@ class PageNavigatorWidget extends StatefulWidget {
     required this.onInsertPageAfter,
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
+    required this.onChordSelected,
   });
 
   @override
@@ -148,6 +150,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         onDeleteMeasure: widget.onDeleteMeasure,
         onSongTitleChanged: widget.onSongTitleChanged,
         onSectionLabelChanged: widget.onSectionLabelChanged,
+        onChordSelected: widget.onChordSelected,
       );
     }
     return GestureDetector(
@@ -162,6 +165,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
           onDeleteMeasure: (a) {},
           onSongTitleChanged: (_) {},
           onSectionLabelChanged: (_) {},
+          onChordSelected: (a, b) {},
         ),
       ),
     );

@@ -5,14 +5,18 @@ import 'piano_keyboard_painter.dart';
 class MeasureWidget extends StatelessWidget {
   final int measureNumber;
   final List<List<bool>> keyboards; // [2][24]
+  final String? chordOverride;
   final void Function(int keyboardIdx, int semitone) onKeyTap;
+  final void Function(String chord) onChordSelected;
   final VoidCallback onDelete;
 
   const MeasureWidget({
     super.key,
     required this.measureNumber,
     required this.keyboards,
+    required this.chordOverride,
     required this.onKeyTap,
+    required this.onChordSelected,
     required this.onDelete,
   });
 
@@ -40,37 +44,11 @@ class MeasureWidget extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 18.0,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    '$measureNumber',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: Color(0xFF888888),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      detectChord(keyboards) ?? '',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF1A1A1A),
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          _ChordHeader(
+            measureNumber: measureNumber,
+            keyboards: keyboards,
+            chordOverride: chordOverride,
+            onChordSelected: onChordSelected,
           ),
           Expanded(
             child: PianoKeyboardWidget(
@@ -88,5 +66,118 @@ class MeasureWidget extends StatelessWidget {
         ],
       ),
     ));
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+class _ChordHeader extends StatelessWidget {
+  final int measureNumber;
+  final List<List<bool>> keyboards;
+  final String? chordOverride;
+  final void Function(String) onChordSelected;
+
+  const _ChordHeader({
+    required this.measureNumber,
+    required this.keyboards,
+    required this.chordOverride,
+    required this.onChordSelected,
+  });
+
+  static const double _itemH = 40.0;
+  static const double _menuVertPad = 8.0; // Flutter's kMenuVerticalPadding
+
+  void _openChordMenu(
+      BuildContext context, Offset tapPos, List<String> chords, int activeIdx) async {
+    // Position the menu so the active item's centre lands at the tap point.
+    final double menuTop =
+        tapPos.dy - _menuVertPad - activeIdx * _itemH - _itemH / 2;
+
+    final selected = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        tapPos.dx - 48, menuTop, tapPos.dx + 48, menuTop,
+      ),
+      items: chords.asMap().entries.map((e) {
+        final isActive = e.key == activeIdx;
+        return PopupMenuItem<String>(
+          value: e.value,
+          height: _itemH,
+          child: Text(
+            e.value,
+            style: TextStyle(
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+              color:
+                  isActive ? const Color(0xFF1A1A1A) : const Color(0xFF555555),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+
+    if (selected != null) onChordSelected(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final allChords = detectAllChords(keyboards);
+
+    String? activeChord;
+    int activeIdx = 0;
+    if (allChords.isNotEmpty) {
+      final overrideIdx =
+          chordOverride != null ? allChords.indexOf(chordOverride!) : -1;
+      activeIdx = overrideIdx >= 0 ? overrideIdx : 0;
+      activeChord = allChords[activeIdx];
+    }
+
+    final hasAlternatives = allChords.length > 1;
+
+    Widget? chordWidget;
+    if (activeChord != null) {
+      final label = Text(
+        activeChord,
+        style: const TextStyle(
+          fontSize: 11,
+          color: Color(0xFF1A1A1A),
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.3,
+        ),
+      );
+      chordWidget = hasAlternatives
+          ? GestureDetector(
+              onTapUp: (d) => _openChordMenu(
+                  context, d.globalPosition, allChords, activeIdx),
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: label,
+              ),
+            )
+          : label;
+    }
+
+    return SizedBox(
+      height: 18.0,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              '$measureNumber',
+              style: const TextStyle(
+                fontSize: 10,
+                color: Color(0xFF888888),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Center(child: chordWidget ?? const SizedBox.shrink()),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

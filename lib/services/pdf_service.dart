@@ -6,7 +6,6 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/practice_document.dart';
 import '../models/practice_sheet.dart';
-import '../models/chord_detector.dart';
 
 class PdfService {
   Future<Uint8List> buildPdfBytes(PracticeDocument document) async {
@@ -74,6 +73,7 @@ class PdfService {
                             ? _buildMeasure(
                                 sheet.measureNumberForSlot(slotIdx),
                                 sheet.state[slotIdx],
+                                sheet.activeChordForSlot(slotIdx),
                               )
                             : pw.SizedBox(),
                       ),
@@ -119,8 +119,7 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards) {
-    final chord = detectChord(keyboards);
+  pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards, String? chord) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.grey700, width: 0.5),

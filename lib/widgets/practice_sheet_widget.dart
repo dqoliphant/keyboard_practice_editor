@@ -16,6 +16,7 @@ class PracticeSheetWidget extends StatelessWidget {
   final void Function(int slotIdx) onDeleteMeasure;
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
+  final void Function(int slotIdx, String chord) onChordSelected;
 
   const PracticeSheetWidget({
     super.key,
@@ -26,6 +27,7 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.onDeleteMeasure,
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
+    required this.onChordSelected,
   });
 
   Widget _cellForSlot(int slotIdx) {
@@ -33,7 +35,9 @@ class PracticeSheetWidget extends StatelessWidget {
       return MeasureWidget(
         measureNumber: sheet.measureNumberForSlot(slotIdx),
         keyboards: sheet.state[slotIdx],
+        chordOverride: sheet.chordOverrides[slotIdx],
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
+        onChordSelected: (chord) => onChordSelected(slotIdx, chord),
         onDelete: () => onDeleteMeasure(slotIdx),
       );
     }

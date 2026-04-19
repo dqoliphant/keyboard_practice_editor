@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'chord_detector.dart';
 
 const int kMeasureCount = 12;
 const int kKeyboardsPerMeasure = 2;
@@ -30,8 +31,12 @@ class PracticeSheet {
 
   final String sectionLabel;
 
+  // User-selected chord label per slot; overrides auto-detection when valid.
+  final Map<int, String> chordOverrides;
+
   PracticeSheet({Set<int>? occupiedSlots, this.sectionLabel = ''})
       : occupiedSlots = occupiedSlots ?? {0},
+        chordOverrides = const {},
         state = List.generate(
           kMeasureCount,
           (_) => List.generate(
@@ -41,8 +46,11 @@ class PracticeSheet {
         );
 
   PracticeSheet.fromState(this.state,
-      {required Set<int> occupiedSlots, this.sectionLabel = ''})
-      : occupiedSlots = Set.unmodifiable(occupiedSlots);
+      {required Set<int> occupiedSlots,
+      this.sectionLabel = '',
+      Map<int, String>? chordOverrides})
+      : occupiedSlots = Set.unmodifiable(occupiedSlots),
+        chordOverrides = Map.unmodifiable(chordOverrides ?? {});
 
   void toggle(int slotIdx, int keyboard, int semitone) {
     state[slotIdx][keyboard][semitone] = !state[slotIdx][keyboard][semitone];
@@ -62,12 +70,29 @@ class PracticeSheet {
     return -1;
   }
 
-  PracticeSheet withSectionLabel(String label) =>
-      PracticeSheet.fromState(state, occupiedSlots: occupiedSlots, sectionLabel: label);
+  /// The active chord label for a slot: uses the stored override if it is still
+  /// a valid alternative for the current keys, otherwise falls back to the first
+  /// auto-detected chord.
+  String? activeChordForSlot(int slotIdx) {
+    final all = detectAllChords(state[slotIdx]);
+    if (all.isEmpty) return null;
+    final override = chordOverrides[slotIdx];
+    if (override != null && all.contains(override)) return override;
+    return all.first;
+  }
+
+  PracticeSheet withSectionLabel(String label) => PracticeSheet.fromState(state,
+      occupiedSlots: occupiedSlots,
+      sectionLabel: label,
+      chordOverrides: chordOverrides);
 
   PracticeSheet withSlotRemoved(int slotIdx) {
     final newSlots = Set<int>.from(occupiedSlots)..remove(slotIdx);
-    return PracticeSheet.fromState(state, occupiedSlots: newSlots, sectionLabel: sectionLabel);
+    final newOverrides = Map<int, String>.from(chordOverrides)..remove(slotIdx);
+    return PracticeSheet.fromState(state,
+        occupiedSlots: newSlots,
+        sectionLabel: sectionLabel,
+        chordOverrides: newOverrides);
   }
 
   PracticeSheet withSlotAdded(int slotIdx) {
@@ -84,12 +109,24 @@ class PracticeSheet {
       newState,
       occupiedSlots: {...occupiedSlots, slotIdx},
       sectionLabel: sectionLabel,
+      chordOverrides: chordOverrides,
     );
+  }
+
+  PracticeSheet withChordOverride(int slotIdx, String chord) {
+    final newOverrides = Map<int, String>.from(chordOverrides)..[slotIdx] = chord;
+    return PracticeSheet.fromState(state,
+        occupiedSlots: occupiedSlots,
+        sectionLabel: sectionLabel,
+        chordOverrides: newOverrides);
   }
 
   Map<String, dynamic> toJson() => {
         'occupiedSlots': (occupiedSlots.toList()..sort()),
         'sectionLabel': sectionLabel,
+        if (chordOverrides.isNotEmpty)
+          'chordOverrides':
+              chordOverrides.map((k, v) => MapEntry(k.toString(), v)),
         'state': state
             .map((m) => m.map((k) => k.map((v) => v ? 1 : 0).toList()).toList())
             .toList(),
@@ -110,9 +147,14 @@ class PracticeSheet {
     final slots = json['occupiedSlots'] != null
         ? Set<int>.from((json['occupiedSlots'] as List).cast<int>())
         : Set<int>.from(List.generate(kMeasureCount, (i) => i));
+    final rawOverrides = json['chordOverrides'] as Map<String, dynamic>?;
+    final overrides = rawOverrides != null
+        ? rawOverrides.map((k, v) => MapEntry(int.parse(k), v as String))
+        : <int, String>{};
     return PracticeSheet.fromState(s,
         occupiedSlots: slots,
-        sectionLabel: json['sectionLabel'] as String? ?? '');
+        sectionLabel: json['sectionLabel'] as String? ?? '',
+        chordOverrides: overrides);
   }
 
   String toJsonString() => jsonEncode(toJson());
