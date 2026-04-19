@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -27,15 +29,29 @@ class PdfService {
     return doc.save();
   }
 
-  Future<void> printOrExport(PracticeDocument document) async {
+  Future<void> print(PracticeDocument document) async {
     final bytes = await buildPdfBytes(document);
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
-      name: document.songTitle.isNotEmpty
-          ? '${document.songTitle}.pdf'
-          : 'practice_sheet.pdf',
+      name: _pdfName(document),
     );
   }
+
+  Future<String?> exportPdf(PracticeDocument document) async {
+    final String? path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Export PDF',
+      fileName: _pdfName(document),
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (path == null) return null;
+    final bytes = await buildPdfBytes(document);
+    await File(path).writeAsBytes(bytes);
+    return path;
+  }
+
+  String _pdfName(PracticeDocument document) =>
+      document.songTitle.isNotEmpty ? '${document.songTitle}.pdf' : 'practice_sheet.pdf';
 
   // -------------------------------------------------------------------------
 

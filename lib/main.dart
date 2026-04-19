@@ -118,11 +118,30 @@ class _EditorPageState extends State<EditorPage> {
     if (_busy) return;
     setState(() => _busy = true);
     try {
-      await _pdfService.printOrExport(_document);
+      await _pdfService.print(_document);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Print failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final path = await _pdfService.exportPdf(_document);
+      if (path != null && mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('PDF saved to $path')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Export failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -160,8 +179,12 @@ class _EditorPageState extends State<EditorPage> {
           TextButton.icon(
             onPressed: _busy ? null : _print,
             icon: const Icon(Icons.print, color: Colors.white70),
-            label: const Text('Print / Export PDF',
-                style: TextStyle(color: Colors.white70)),
+            label: const Text('Print', style: TextStyle(color: Colors.white70)),
+          ),
+          TextButton.icon(
+            onPressed: _busy ? null : _exportPdf,
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.white70),
+            label: const Text('Export PDF', style: TextStyle(color: Colors.white70)),
           ),
           TextButton.icon(
             onPressed: _busy ? null : _clear,
