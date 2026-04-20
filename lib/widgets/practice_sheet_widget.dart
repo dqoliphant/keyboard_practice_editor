@@ -14,6 +14,7 @@ class PracticeSheetWidget extends StatelessWidget {
   final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
+  final VoidCallback? onDeletePage;
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
   final void Function(int slotIdx, String chord) onChordSelected;
@@ -25,6 +26,7 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.onKeyTap,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
+    this.onDeletePage,
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
     required this.onChordSelected,
@@ -69,9 +71,27 @@ class PracticeSheetWidget extends StatelessWidget {
     return rows;
   }
 
+  void _showPageMenu(BuildContext context, Offset globalPos) async {
+    if (onDeletePage == null) return;
+    final result = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        globalPos.dx, globalPos.dy, globalPos.dx, globalPos.dy,
+      ),
+      items: const [
+        PopupMenuItem(value: 'delete', child: Text('Delete Page')),
+      ],
+    );
+    if (result == 'delete') onDeletePage!();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+      onSecondaryTapUp: onDeletePage != null
+          ? (d) => _showPageMenu(context, d.globalPosition)
+          : null,
+      child: Container(
       width: kSheetWidth,
       height: kSheetHeight,
       color: Colors.white,
@@ -89,7 +109,7 @@ class PracticeSheetWidget extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

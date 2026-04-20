@@ -70,6 +70,11 @@ class _EditorPageState extends State<EditorPage> {
         _document.withPageInsertedAfter(_document.currentPageIndex));
   }
 
+  void _deletePage() {
+    setState(() => _document =
+        _document.withPageDeleted(_document.currentPageIndex));
+  }
+
   void _updateSongTitle(String title) {
     setState(() => _document = _document.withSongTitle(title));
   }
@@ -218,6 +223,7 @@ class _EditorPageState extends State<EditorPage> {
         onGoToPage: _goToPage,
         onInsertPageBefore: _insertPageBefore,
         onInsertPageAfter: _insertPageAfter,
+        onDeletePage: _document.pages.length > 1 ? _deletePage : null,
         onSongTitleChanged: _updateSongTitle,
         onSectionLabelChanged: _updateSectionLabel,
         onChordSelected: _selectChord,

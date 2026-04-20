@@ -52,6 +52,14 @@ class PracticeDocument {
         pages: newPages, currentPageIndex: index + 1, songTitle: songTitle);
   }
 
+  PracticeDocument withPageDeleted(int index) {
+    if (pages.length <= 1) return this;
+    final newPages = List<PracticeSheet>.from(pages)..removeAt(index);
+    final newIdx = index.clamp(0, newPages.length - 1);
+    return PracticeDocument._(
+        pages: newPages, currentPageIndex: newIdx, songTitle: songTitle);
+  }
+
   Map<String, dynamic> toJson() => {
         'currentPageIndex': currentPageIndex,
         'songTitle': songTitle,
