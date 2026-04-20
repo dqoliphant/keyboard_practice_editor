@@ -15,6 +15,7 @@ class PracticeSheetWidget extends StatelessWidget {
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
   final VoidCallback? onDeletePage;
+  final void Function(int slotIdx, int keyboard, int? semitone)? onKeyHover;
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
   final void Function(int slotIdx, String chord) onChordSelected;
@@ -27,6 +28,7 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.onAddMeasure,
     required this.onDeleteMeasure,
     this.onDeletePage,
+    this.onKeyHover,
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
     required this.onChordSelected,
@@ -41,6 +43,7 @@ class PracticeSheetWidget extends StatelessWidget {
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
         onChordSelected: (chord) => onChordSelected(slotIdx, chord),
         onDelete: () => onDeleteMeasure(slotIdx),
+        onKeyHover: (kb, s) => onKeyHover?.call(slotIdx, kb, s),
       );
     }
     final persistent = slotIdx == sheet.firstUnoccupiedSlot;

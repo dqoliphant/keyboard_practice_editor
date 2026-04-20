@@ -113,11 +113,13 @@ class PianoKeyboardPainter extends CustomPainter {
 class PianoKeyboardWidget extends StatefulWidget {
   final List<bool> activeKeys;
   final void Function(int semitone) onKeyTap;
+  final void Function(int? semitone)? onKeyHover;
 
   const PianoKeyboardWidget({
     super.key,
     required this.activeKeys,
     required this.onKeyTap,
+    this.onKeyHover,
   });
 
   @override
@@ -161,9 +163,15 @@ class _PianoKeyboardWidgetState extends State<PianoKeyboardWidget> {
         return MouseRegion(
           onHover: (event) {
             final semi = _semitoneAt(event.localPosition);
-            if (semi != _hoveredSemitone) setState(() => _hoveredSemitone = semi);
+            if (semi != _hoveredSemitone) {
+              setState(() => _hoveredSemitone = semi);
+              widget.onKeyHover?.call(semi);
+            }
           },
-          onExit: (_) => setState(() => _hoveredSemitone = null),
+          onExit: (_) {
+            if (_hoveredSemitone != null) widget.onKeyHover?.call(null);
+            setState(() => _hoveredSemitone = null);
+          },
           child: GestureDetector(
             onTapDown: (details) {
               final semi = _semitoneAt(details.localPosition);

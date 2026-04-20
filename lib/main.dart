@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'models/practice_document.dart';
+import 'widgets/grand_staff_widget.dart';
 import 'widgets/page_navigator_widget.dart';
 import 'services/file_service.dart';
 import 'services/pdf_service.dart';
@@ -39,6 +40,10 @@ class _EditorPageState extends State<EditorPage> {
   final _fileService = FileService();
   final _pdfService = PdfService();
   bool _busy = false;
+  bool _showGrandStaff = false;
+  int? _hoveredSlot;
+  int? _hoveredKeyboard;
+  int? _hoveredSemitone;
 
   void _toggleKey(int slotIdx, int keyboard, int semitone) {
     setState(() => _document.currentPage.toggle(slotIdx, keyboard, semitone));
@@ -158,6 +163,20 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
+  void _onKeyHover(int slotIdx, int keyboard, int? semitone) {
+    setState(() {
+      if (semitone != null) {
+        _hoveredSlot = slotIdx;
+        _hoveredKeyboard = keyboard;
+        _hoveredSemitone = semitone;
+      } else if (_hoveredSlot == slotIdx && _hoveredKeyboard == keyboard) {
+        _hoveredSlot = null;
+        _hoveredKeyboard = null;
+        _hoveredSemitone = null;
+      }
+    });
+  }
+
   void _clear() => setState(() => _document = PracticeDocument());
 
   String get _pageLabel {
@@ -176,6 +195,14 @@ class _EditorPageState extends State<EditorPage> {
         backgroundColor: const Color(0xFF2C5F8A),
         foregroundColor: Colors.white,
         actions: [
+          IconButton(
+            icon: Icon(
+              Icons.library_music,
+              color: _showGrandStaff ? Colors.white : Colors.white38,
+            ),
+            tooltip: 'Toggle grand staff',
+            onPressed: () => setState(() => _showGrandStaff = !_showGrandStaff),
+          ),
           TextButton.icon(
             onPressed: _busy ? null : _load,
             icon: const Icon(Icons.folder_open, color: Colors.white70),
@@ -215,18 +242,35 @@ class _EditorPageState extends State<EditorPage> {
             ),
         ],
       ),
-      body: PageNavigatorWidget(
-        document: _document,
-        onKeyTap: _toggleKey,
-        onAddMeasure: _addMeasure,
-        onDeleteMeasure: _deleteMeasure,
-        onGoToPage: _goToPage,
-        onInsertPageBefore: _insertPageBefore,
-        onInsertPageAfter: _insertPageAfter,
-        onDeletePage: _document.pages.length > 1 ? _deletePage : null,
-        onSongTitleChanged: _updateSongTitle,
-        onSectionLabelChanged: _updateSectionLabel,
-        onChordSelected: _selectChord,
+      body: Row(
+        children: [
+          if (_showGrandStaff)
+            GrandStaffWidget(
+              activeKeys: (_hoveredSlot != null &&
+                      _document.currentPage.occupiedSlots
+                          .contains(_hoveredSlot!))
+                  ? _document.currentPage.state[_hoveredSlot!]
+                  : null,
+              hoveredKeyboard: _hoveredKeyboard,
+              hoveredSemitone: _hoveredSemitone,
+            ),
+          Expanded(
+            child: PageNavigatorWidget(
+              document: _document,
+              onKeyTap: _toggleKey,
+              onAddMeasure: _addMeasure,
+              onDeleteMeasure: _deleteMeasure,
+              onGoToPage: _goToPage,
+              onInsertPageBefore: _insertPageBefore,
+              onInsertPageAfter: _insertPageAfter,
+              onDeletePage: _document.pages.length > 1 ? _deletePage : null,
+              onKeyHover: _showGrandStaff ? _onKeyHover : null,
+              onSongTitleChanged: _updateSongTitle,
+              onSectionLabelChanged: _updateSectionLabel,
+              onChordSelected: _selectChord,
+            ),
+          ),
+        ],
       ),
     );
   }

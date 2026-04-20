@@ -9,6 +9,7 @@ class MeasureWidget extends StatelessWidget {
   final void Function(int keyboardIdx, int semitone) onKeyTap;
   final void Function(String chord) onChordSelected;
   final VoidCallback onDelete;
+  final void Function(int keyboard, int? semitone)? onKeyHover;
 
   const MeasureWidget({
     super.key,
@@ -18,6 +19,7 @@ class MeasureWidget extends StatelessWidget {
     required this.onKeyTap,
     required this.onChordSelected,
     required this.onDelete,
+    this.onKeyHover,
   });
 
   void _showContextMenu(BuildContext context, Offset globalPos) async {
@@ -54,6 +56,7 @@ class MeasureWidget extends StatelessWidget {
             child: PianoKeyboardWidget(
               activeKeys: keyboards[0],
               onKeyTap: (semi) => onKeyTap(0, semi),
+              onKeyHover: (s) => onKeyHover?.call(0, s),
             ),
           ),
           const SizedBox(height: 10.0),
@@ -61,6 +64,7 @@ class MeasureWidget extends StatelessWidget {
             child: PianoKeyboardWidget(
               activeKeys: keyboards[1],
               onKeyTap: (semi) => onKeyTap(1, semi),
+              onKeyHover: (s) => onKeyHover?.call(1, s),
             ),
           ),
         ],
