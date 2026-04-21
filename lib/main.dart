@@ -172,7 +172,7 @@ class _EditorPageState extends State<EditorPage> {
   // - white keys whose note name is altered by the key sig
   // - black keys not covered by the key sig
   Set<int> get _grayedKeys {
-    if (!_showGrandStaff || _keySig.isEmpty) return const {};
+    if (!_showGrandStaff) return const {};
     const semiToNoteName = {0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6};
     const accidentalNames = {1: (0, 1), 3: (1, 2), 6: (3, 4), 8: (4, 5), 10: (5, 6)};
     final result = <int>{};
