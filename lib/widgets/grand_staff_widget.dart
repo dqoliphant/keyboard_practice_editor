@@ -4,17 +4,17 @@ import '../models/staff_accidental.dart';
 export '../models/staff_accidental.dart';
 
 // Layout constants
-const double _kStepH = 8.0;
-const double _kCenterY = 134.0; // y-coordinate of middle C (diatonic step 0)
-const double _kPanelWidth = 148.0;
-const double _kPanelHeight = 280.0;
-const double _kStaffLeft = 34.0;
-const double _kStaffRight = 132.0;
-const double _kNoteX = 94.0;
-const double _kNoteW = 12.0;
-const double _kNoteH = 8.0;
-const double _kLedgerHalfW = 10.0;
-const double _kKeyX = 46.0; // center-x for key-signature symbols
+const double _kStepH = 16.0;
+const double _kCenterY = 268.0; // y-coordinate of middle C (diatonic step 0)
+const double _kPanelWidth = 296.0;
+const double _kPanelHeight = 560.0;
+const double _kStaffLeft = 68.0;
+const double _kStaffRight = 264.0;
+const double _kNoteX = 188.0;
+const double _kNoteW = 24.0;
+const double _kNoteH = 16.0;
+const double _kLedgerHalfW = 20.0;
+const double _kKeyX = 92.0; // center-x for key-signature symbols
 
 double _stepToY(int step) => _kCenterY - step * _kStepH;
 
@@ -95,13 +95,13 @@ class GrandStaffWidget extends StatelessWidget {
   }
 
   static const _labelStyle = TextStyle(
-    fontSize: 13,
+    fontSize: 26,
     fontWeight: FontWeight.w600,
     color: Color(0xFF333333),
     height: 1.2,
   );
   static const _sublabelStyle = TextStyle(
-    fontSize: 11,
+    fontSize: 22,
     fontStyle: FontStyle.italic,
     color: Color(0xFF666666),
     height: 1.2,
@@ -141,22 +141,22 @@ class GrandStaffWidget extends StatelessWidget {
                 ),
               ),
               Positioned(
-                left: 1,
-                top: _stepToY(10) - 8,
+                left: 2,
+                top: _stepToY(10) - 16,
                 child: const IgnorePointer(
                   child: Text(
                     '\u{1D11E}',
-                    style: TextStyle(fontSize: 52, height: 1.0, color: Color(0xFF222222)),
+                    style: TextStyle(fontSize: 104, height: 1.0, color: Color(0xFF222222)),
                   ),
                 ),
               ),
               Positioned(
-                left: 3,
-                top: _stepToY(-2) - 4,
+                left: 6,
+                top: _stepToY(-2) - 8,
                 child: const IgnorePointer(
                   child: Text(
                     '\u{1D122}',
-                    style: TextStyle(fontSize: 36, height: 1.0, color: Color(0xFF222222)),
+                    style: TextStyle(fontSize: 72, height: 1.0, color: Color(0xFF222222)),
                   ),
                 ),
               ),
@@ -173,13 +173,13 @@ class GrandStaffWidget extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             Text('${names.major} major', style: _labelStyle),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             staffPanel,
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
             Text('${names.minor} minor', style: _sublabelStyle),
-            const SizedBox(height: 6),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -255,7 +255,7 @@ class _GrandStaffPainter extends CustomPainter {
   void _drawStaffLines(Canvas canvas) {
     final paint = Paint()
       ..color = const Color(0xFF333333)
-      ..strokeWidth = 0.8
+      ..strokeWidth = 1.6
       ..style = PaintingStyle.stroke;
     for (final step in _trebleLines) {
       canvas.drawLine(
@@ -273,7 +273,7 @@ class _GrandStaffPainter extends CustomPainter {
       Offset(_kStaffLeft, _stepToY(-10)),
       Paint()
         ..color = const Color(0xFF333333)
-        ..strokeWidth = 1.5
+        ..strokeWidth = 3.0
         ..style = PaintingStyle.stroke,
     );
   }
@@ -378,7 +378,7 @@ class _GrandStaffPainter extends CustomPainter {
     }
     final paint = Paint()
       ..color = const Color(0xFF333333)
-      ..strokeWidth = 0.8
+      ..strokeWidth = 1.6
       ..style = PaintingStyle.stroke;
     for (final e in ledgerHw.entries) {
       canvas.drawLine(
@@ -405,7 +405,7 @@ class _GrandStaffPainter extends CustomPainter {
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF222222)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5);
+        ..strokeWidth = 3.0);
     } else {
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF4A90D9)
@@ -419,7 +419,7 @@ class _GrandStaffPainter extends CustomPainter {
   }
 
   void _drawSymbol(Canvas canvas, String symbol, double cx, double cy,
-      {double fontSize = 11.0, Color color = const Color(0xFF222222)}) {
+      {double fontSize = 22.0, Color color = const Color(0xFF222222)}) {
     final tp = TextPainter(
       text: TextSpan(
         text: symbol,
