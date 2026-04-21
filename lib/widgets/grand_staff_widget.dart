@@ -171,9 +171,12 @@ class _GrandStaffPainter extends CustomPainter {
     required this.keySig,
   });
 
-  // Returns the diatonic step and whether a ♮ symbol is needed.
-  // Returns null if the semitone cannot be displayed given the current key sig.
-  ({int step, bool needsNatural})? _resolveNote(int keyboard, int semitone) {
+  // Returns the diatonic step and an optional accidental symbol to display.
+  // symbol == '♮' : natural note conflicts with key sig
+  // symbol == '♯' / '♭' : accidental not covered by key sig
+  // symbol == null : no symbol needed
+  // Always returns a position (never null) — accidentals default to sharp spelling.
+  ({int step, String? symbol})? _resolveNote(int keyboard, int semitone) {
     final oct = semitone ~/ 12;
     final semiInOct = semitone % 12;
 
@@ -181,20 +184,28 @@ class _GrandStaffPainter extends CustomPainter {
     final naturalDiatonic = _kSemiToDiatonic[semiInOct];
     if (naturalDiatonic != null) {
       final step = _kKbBaseStep[keyboard] + oct * 7 + naturalDiatonic;
-      // ♮ needed when key sig marks this note name as sharp or flat
-      return (step: step, needsNatural: keySig.containsKey(naturalDiatonic));
+      final symbol = keySig.containsKey(naturalDiatonic) ? '♮' : null;
+      return (step: step, symbol: symbol);
     }
 
-    // Accidental note — displayable only if the key sig explains it
+    // Accidental note
     final accInfo = _kAccidentalNames[semiInOct];
     if (accInfo != null) {
       final (sharpOf, flatOf) = accInfo;
+      // Key sig explains it — display at the natural position, no symbol
       if (keySig[sharpOf] == StaffAccidental.sharp) {
-        return (step: _kKbBaseStep[keyboard] + oct * 7 + sharpOf, needsNatural: false);
+        return (step: _kKbBaseStep[keyboard] + oct * 7 + sharpOf, symbol: null);
       }
       if (keySig[flatOf] == StaffAccidental.flat) {
-        return (step: _kKbBaseStep[keyboard] + oct * 7 + flatOf, needsNatural: false);
+        return (step: _kKbBaseStep[keyboard] + oct * 7 + flatOf, symbol: null);
       }
+      // Not covered: show with ♯ or ♭ depending on which side of the key sig we're on.
+      final flatCount = keySig.values.where((v) => v == StaffAccidental.flat).length;
+      final sharpCount = keySig.values.where((v) => v == StaffAccidental.sharp).length;
+      if (flatCount > sharpCount) {
+        return (step: _kKbBaseStep[keyboard] + oct * 7 + flatOf, symbol: '♭');
+      }
+      return (step: _kKbBaseStep[keyboard] + oct * 7 + sharpOf, symbol: '♯');
     }
     return null;
   }
@@ -242,15 +253,15 @@ class _GrandStaffPainter extends CustomPainter {
   }
 
   void _drawNotes(Canvas canvas) {
-    // (step, keyboard) → (isHovered, needsNatural); hovered overrides active.
-    final Map<(int, int), (bool, bool)> noteMap = {};
+    // (step, keyboard) → (isHovered, symbol); hovered overrides active.
+    final Map<(int, int), (bool, String?)> noteMap = {};
 
     if (activeKeys != null) {
       for (int kb = 0; kb < 2; kb++) {
         for (int s = 0; s < 24; s++) {
           if (!activeKeys![kb][s]) continue;
           final info = _resolveNote(kb, s);
-          if (info != null) noteMap[(info.step, kb)] = (false, info.needsNatural);
+          if (info != null) noteMap[(info.step, kb)] = (false, info.symbol);
         }
       }
     }
@@ -258,24 +269,24 @@ class _GrandStaffPainter extends CustomPainter {
     if (hoveredKeyboard != null && hoveredSemitone != null) {
       final info = _resolveNote(hoveredKeyboard!, hoveredSemitone!);
       if (info != null) {
-        noteMap[(info.step, hoveredKeyboard!)] = (true, info.needsNatural);
+        noteMap[(info.step, hoveredKeyboard!)] = (true, info.symbol);
       }
     }
 
     if (noteMap.isEmpty) return;
 
     final notes = noteMap.entries
-        .map((e) => (step: e.key.$1, kb: e.key.$2, hovered: e.value.$1, natural: e.value.$2))
+        .map((e) => (step: e.key.$1, kb: e.key.$2, hovered: e.value.$1, symbol: e.value.$2))
         .toList();
 
     _drawLedgerLines(canvas, notes);
     for (final n in notes) {
-      _drawWholeNote(canvas, n.step, n.hovered, n.natural);
+      _drawWholeNote(canvas, n.step, n.hovered, n.symbol);
     }
   }
 
   void _drawLedgerLines(
-      Canvas canvas, List<({int step, int kb, bool hovered, bool natural})> notes) {
+      Canvas canvas, List<({int step, int kb, bool hovered, String? symbol})> notes) {
     final Set<int> ledgerSteps = {};
     for (final n in notes) {
       if (n.kb == 0) {
@@ -302,7 +313,7 @@ class _GrandStaffPainter extends CustomPainter {
     }
   }
 
-  void _drawWholeNote(Canvas canvas, int step, bool isHovered, bool needsNatural) {
+  void _drawWholeNote(Canvas canvas, int step, bool isHovered, String? symbol) {
     final y = _stepToY(step);
     final rect = Rect.fromCenter(
       center: Offset(_kNoteX, y),
@@ -324,9 +335,9 @@ class _GrandStaffPainter extends CustomPainter {
         ..strokeWidth = 1.5);
     }
 
-    if (needsNatural) {
+    if (symbol != null) {
       _drawSymbol(
-        canvas, '♮',
+        canvas, symbol,
         _kNoteX - _kNoteW / 2 - 6,
         y,
         color: isHovered ? const Color(0xFF4A90D9) : const Color(0xFF222222),
