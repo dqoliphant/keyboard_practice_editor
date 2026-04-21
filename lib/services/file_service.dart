@@ -11,9 +11,10 @@ class FileService {
       allowedExtensions: ['json'],
     );
     if (path == null) return null;
-    final file = File(path);
+    final resolvedPath = path.endsWith('.json') ? path : '$path.json';
+    final file = File(resolvedPath);
     await file.writeAsString(doc.toJsonString());
-    return path;
+    return resolvedPath;
   }
 
   Future<PracticeDocument?> loadDocument() async {
