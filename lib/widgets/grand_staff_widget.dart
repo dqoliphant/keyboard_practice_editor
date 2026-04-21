@@ -48,41 +48,35 @@ const Map<int, int> _kBassKeySteps = {
 
 // ---------------------------------------------------------------------------
 
-class GrandStaffWidget extends StatefulWidget {
+class GrandStaffWidget extends StatelessWidget {
   final List<List<bool>>? activeKeys; // [2][24] or null
   final int? hoveredKeyboard;
   final int? hoveredSemitone;
+  final Map<int, StaffAccidental> keySig;
+  final void Function(Map<int, StaffAccidental>) onKeySigChanged;
 
   const GrandStaffWidget({
     super.key,
     required this.activeKeys,
     required this.hoveredKeyboard,
     required this.hoveredSemitone,
+    required this.keySig,
+    required this.onKeySigChanged,
   });
-
-  @override
-  State<GrandStaffWidget> createState() => _GrandStaffWidgetState();
-}
-
-class _GrandStaffWidgetState extends State<GrandStaffWidget> {
-  Map<int, StaffAccidental> _keySig = const {};
 
   void _onTapDown(TapDownDetails details) {
     final step = ((_kCenterY - details.localPosition.dy) / _kStepH).round();
-    // Dart's % on int is always non-negative when divisor is positive.
     final noteName = step % 7;
-    setState(() {
-      final updated = Map<int, StaffAccidental>.from(_keySig);
-      final current = updated[noteName];
-      if (current == null) {
-        updated[noteName] = StaffAccidental.sharp;
-      } else if (current == StaffAccidental.sharp) {
-        updated[noteName] = StaffAccidental.flat;
-      } else {
-        updated.remove(noteName);
-      }
-      _keySig = updated;
-    });
+    final updated = Map<int, StaffAccidental>.from(keySig);
+    final current = updated[noteName];
+    if (current == null) {
+      updated[noteName] = StaffAccidental.sharp;
+    } else if (current == StaffAccidental.sharp) {
+      updated[noteName] = StaffAccidental.flat;
+    } else {
+      updated.remove(noteName);
+    }
+    onKeySigChanged(updated);
   }
 
   @override
@@ -114,10 +108,10 @@ class _GrandStaffWidgetState extends State<GrandStaffWidget> {
                   Positioned.fill(
                     child: CustomPaint(
                       painter: _GrandStaffPainter(
-                        activeKeys: widget.activeKeys,
-                        hoveredKeyboard: widget.hoveredKeyboard,
-                        hoveredSemitone: widget.hoveredSemitone,
-                        keySig: _keySig,
+                        activeKeys: activeKeys,
+                        hoveredKeyboard: hoveredKeyboard,
+                        hoveredSemitone: hoveredSemitone,
+                        keySig: keySig,
                       ),
                     ),
                   ),

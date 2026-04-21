@@ -3,17 +3,20 @@ import '../models/practice_sheet.dart';
 
 const Color kHighlightColor = Color(0xFF4A90D9);
 const Color kHoverColor = Color(0xFFD6E8FA);
+const Color kGrayedKeyColor = Color(0xFFCCCCCC);
 const Color kBlackKeyBorderColor = Color(0xFF222222);
 const Color kWhiteKeyBorderColor = Color(0xFF000000);
 
 class PianoKeyboardPainter extends CustomPainter {
   final List<bool> activeKeys;
   final int? hoveredSemitone;
+  final Set<int> grayedKeys;
   final bool isForPdf;
 
   PianoKeyboardPainter({
     required this.activeKeys,
     this.hoveredSemitone,
+    this.grayedKeys = const {},
     this.isForPdf = false,
   });
 
@@ -42,7 +45,10 @@ class PianoKeyboardPainter extends CustomPainter {
       final Rect rect = Rect.fromLTWH(i * whiteW, 0, whiteW, whiteH);
 
       final fillPaint = Paint()
-        ..color = active ? kHighlightColor : (hovered ? kHoverColor : Colors.white)
+        ..color = active ? kHighlightColor
+            : hovered ? kHoverColor
+            : grayedKeys.contains(semi) ? kGrayedKeyColor
+            : Colors.white
         ..style = PaintingStyle.fill;
       canvas.drawRect(rect, fillPaint);
 
@@ -104,22 +110,27 @@ class PianoKeyboardPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(PianoKeyboardPainter old) =>
-      old.hoveredSemitone != hoveredSemitone ||
-      List.generate(kSemitones, (i) => old.activeKeys[i] != activeKeys[i])
-          .any((v) => v);
+  bool shouldRepaint(PianoKeyboardPainter old) {
+    if (old.hoveredSemitone != hoveredSemitone) return true;
+    if (old.grayedKeys.length != grayedKeys.length ||
+        !grayedKeys.every(old.grayedKeys.contains)) return true;
+    return List.generate(kSemitones, (i) => old.activeKeys[i] != activeKeys[i])
+        .any((v) => v);
+  }
 }
 
 class PianoKeyboardWidget extends StatefulWidget {
   final List<bool> activeKeys;
   final void Function(int semitone) onKeyTap;
   final void Function(int? semitone)? onKeyHover;
+  final Set<int> grayedKeys;
 
   const PianoKeyboardWidget({
     super.key,
     required this.activeKeys,
     required this.onKeyTap,
     this.onKeyHover,
+    this.grayedKeys = const {},
   });
 
   @override
@@ -182,6 +193,7 @@ class _PianoKeyboardWidgetState extends State<PianoKeyboardWidget> {
               painter: PianoKeyboardPainter(
                 activeKeys: widget.activeKeys,
                 hoveredSemitone: _hoveredSemitone,
+                grayedKeys: widget.grayedKeys,
               ),
             ),
           ),

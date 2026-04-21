@@ -41,6 +41,7 @@ class _EditorPageState extends State<EditorPage> {
   final _pdfService = PdfService();
   bool _busy = false;
   bool _showGrandStaff = false;
+  Map<int, StaffAccidental> _keySig = const {};
   int? _hoveredSlot;
   int? _hoveredKeyboard;
   int? _hoveredSemitone;
@@ -163,6 +164,22 @@ class _EditorPageState extends State<EditorPage> {
     }
   }
 
+  void _onKeySigChanged(Map<int, StaffAccidental> keySig) {
+    setState(() => _keySig = keySig);
+  }
+
+  // Semitones (0-23) of natural-note keys whose note name is altered by _keySig.
+  Set<int> get _grayedKeys {
+    if (!_showGrandStaff || _keySig.isEmpty) return const {};
+    const semiToNoteName = {0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6};
+    final result = <int>{};
+    for (int s = 0; s < 24; s++) {
+      final noteName = semiToNoteName[s % 12];
+      if (noteName != null && _keySig.containsKey(noteName)) result.add(s);
+    }
+    return result;
+  }
+
   void _onKeyHover(int slotIdx, int keyboard, int? semitone) {
     setState(() {
       if (semitone != null) {
@@ -253,6 +270,8 @@ class _EditorPageState extends State<EditorPage> {
                   : null,
               hoveredKeyboard: _hoveredKeyboard,
               hoveredSemitone: _hoveredSemitone,
+              keySig: _keySig,
+              onKeySigChanged: _onKeySigChanged,
             ),
           Expanded(
             child: PageNavigatorWidget(
@@ -265,6 +284,7 @@ class _EditorPageState extends State<EditorPage> {
               onInsertPageAfter: _insertPageAfter,
               onDeletePage: _document.pages.length > 1 ? _deletePage : null,
               onKeyHover: _showGrandStaff ? _onKeyHover : null,
+              grayedKeys: _grayedKeys,
               onSongTitleChanged: _updateSongTitle,
               onSectionLabelChanged: _updateSectionLabel,
               onChordSelected: _selectChord,

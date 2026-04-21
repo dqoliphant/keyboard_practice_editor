@@ -18,6 +18,7 @@ class PageNavigatorWidget extends StatefulWidget {
   final VoidCallback onInsertPageAfter;
   final VoidCallback? onDeletePage;
   final void Function(int slotIdx, int keyboard, int? semitone)? onKeyHover;
+  final Set<int> grayedKeys;
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
   final void Function(int slotIdx, String chord) onChordSelected;
@@ -33,6 +34,7 @@ class PageNavigatorWidget extends StatefulWidget {
     required this.onInsertPageAfter,
     this.onDeletePage,
     this.onKeyHover,
+    this.grayedKeys = const {},
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
     required this.onChordSelected,
@@ -154,6 +156,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         onDeleteMeasure: widget.onDeleteMeasure,
         onDeletePage: widget.onDeletePage,
         onKeyHover: widget.onKeyHover,
+        grayedKeys: widget.grayedKeys,
         onSongTitleChanged: widget.onSongTitleChanged,
         onSectionLabelChanged: widget.onSectionLabelChanged,
         onChordSelected: widget.onChordSelected,
