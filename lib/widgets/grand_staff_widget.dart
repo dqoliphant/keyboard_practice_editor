@@ -343,8 +343,12 @@ class _GrandStaffPainter extends CustomPainter {
         // Two noteheads side by side; centres separated by noteWidth + 2 px gap.
         final x1 = _kNoteX - (_kNoteW / 2 + 1);
         final x2 = _kNoteX + (_kNoteW / 2 + 1);
+        // Any accidental on the right notehead must clear the left notehead,
+        // so override its symbol x to sit left of x1's left edge.
+        final symXForRight = x1 - _kNoteW / 2 - 6;
         _drawWholeNote(canvas, step, x1, group[0].isActive, group[0].isHovered, group[0].symbol);
-        _drawWholeNote(canvas, step, x2, group[1].isActive, group[1].isHovered, group[1].symbol);
+        _drawWholeNote(canvas, step, x2, group[1].isActive, group[1].isHovered, group[1].symbol,
+            symbolX: symXForRight);
       }
     }
   }
@@ -386,7 +390,7 @@ class _GrandStaffPainter extends CustomPainter {
   }
 
   void _drawWholeNote(Canvas canvas, int step, double x,
-      bool isActive, bool isHovered, String? symbol) {
+      bool isActive, bool isHovered, String? symbol, {double? symbolX}) {
     final y = _stepToY(step);
     final rect = Rect.fromCenter(center: Offset(x, y), width: _kNoteW, height: _kNoteH);
 
@@ -409,7 +413,7 @@ class _GrandStaffPainter extends CustomPainter {
     }
 
     if (symbol != null) {
-      _drawSymbol(canvas, symbol, x - _kNoteW / 2 - 6, y,
+      _drawSymbol(canvas, symbol, symbolX ?? x - _kNoteW / 2 - 6, y,
           color: isActive ? const Color(0xFF222222) : const Color(0xFF4A90D9));
     }
   }
