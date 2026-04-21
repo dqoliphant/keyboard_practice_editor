@@ -194,17 +194,20 @@ class _EditorPageState extends State<EditorPage> {
     return result;
   }
 
-  void _onKeyHover(int slotIdx, int keyboard, int? semitone) {
+  void _onMeasureHover(int? slotIdx) {
     setState(() {
-      if (semitone != null) {
-        _hoveredSlot = slotIdx;
-        _hoveredKeyboard = keyboard;
-        _hoveredSemitone = semitone;
-      } else if (_hoveredSlot == slotIdx && _hoveredKeyboard == keyboard) {
-        _hoveredSlot = null;
+      _hoveredSlot = slotIdx;
+      if (slotIdx == null) {
         _hoveredKeyboard = null;
         _hoveredSemitone = null;
       }
+    });
+  }
+
+  void _onKeyHover(int slotIdx, int keyboard, int? semitone) {
+    setState(() {
+      _hoveredKeyboard = semitone != null ? keyboard : null;
+      _hoveredSemitone = semitone;
     });
   }
 
@@ -298,6 +301,7 @@ class _EditorPageState extends State<EditorPage> {
               onInsertPageAfter: _insertPageAfter,
               onDeletePage: _document.pages.length > 1 ? _deletePage : null,
               onKeyHover: _showGrandStaff ? _onKeyHover : null,
+              onMeasureHover: _showGrandStaff ? _onMeasureHover : null,
               grayedKeys: _grayedKeys,
               onSongTitleChanged: _updateSongTitle,
               onSectionLabelChanged: _updateSectionLabel,

@@ -10,6 +10,8 @@ class MeasureWidget extends StatelessWidget {
   final void Function(String chord) onChordSelected;
   final VoidCallback onDelete;
   final void Function(int keyboard, int? semitone)? onKeyHover;
+  final VoidCallback? onMeasureEnter;
+  final VoidCallback? onMeasureExit;
   final Set<int> grayedKeys;
 
   const MeasureWidget({
@@ -21,6 +23,8 @@ class MeasureWidget extends StatelessWidget {
     required this.onChordSelected,
     required this.onDelete,
     this.onKeyHover,
+    this.onMeasureEnter,
+    this.onMeasureExit,
     this.grayedKeys = const {},
   });
 
@@ -39,7 +43,10 @@ class MeasureWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return MouseRegion(
+      onEnter: (_) => onMeasureEnter?.call(),
+      onExit: (_) => onMeasureExit?.call(),
+      child: GestureDetector(
       onSecondaryTapUp: (d) => _showContextMenu(context, d.globalPosition),
       child: Container(
       decoration: BoxDecoration(
@@ -73,7 +80,7 @@ class MeasureWidget extends StatelessWidget {
           ),
         ],
       ),
-    ));
+    )));
   }
 }
 
