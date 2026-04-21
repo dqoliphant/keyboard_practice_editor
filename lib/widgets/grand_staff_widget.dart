@@ -287,15 +287,15 @@ class _GrandStaffPainter extends CustomPainter {
   }
 
   void _drawNotes(Canvas canvas) {
-    // (step, keyboard) → (isHovered, symbol); hovered overrides active.
-    final Map<(int, int), (bool, String?)> noteMap = {};
+    // (step, keyboard) → (isActive, isHovered, symbol)
+    final Map<(int, int), (bool, bool, String?)> noteMap = {};
 
     if (activeKeys != null) {
       for (int kb = 0; kb < 2; kb++) {
         for (int s = 0; s < 24; s++) {
           if (!activeKeys![kb][s]) continue;
           final info = _resolveNote(kb, s);
-          if (info != null) noteMap[(info.step, kb)] = (false, info.symbol);
+          if (info != null) noteMap[(info.step, kb)] = (true, false, info.symbol);
         }
       }
     }
@@ -303,24 +303,26 @@ class _GrandStaffPainter extends CustomPainter {
     if (hoveredKeyboard != null && hoveredSemitone != null) {
       final info = _resolveNote(hoveredKeyboard!, hoveredSemitone!);
       if (info != null) {
-        noteMap[(info.step, hoveredKeyboard!)] = (true, info.symbol);
+        final key = (info.step, hoveredKeyboard!);
+        final wasActive = noteMap[key]?.$1 ?? false;
+        noteMap[key] = (wasActive, true, info.symbol);
       }
     }
 
     if (noteMap.isEmpty) return;
 
     final notes = noteMap.entries
-        .map((e) => (step: e.key.$1, kb: e.key.$2, hovered: e.value.$1, symbol: e.value.$2))
+        .map((e) => (step: e.key.$1, kb: e.key.$2, active: e.value.$1, hovered: e.value.$2, symbol: e.value.$3))
         .toList();
 
     _drawLedgerLines(canvas, notes);
     for (final n in notes) {
-      _drawWholeNote(canvas, n.step, n.hovered, n.symbol);
+      _drawWholeNote(canvas, n.step, n.active, n.hovered, n.symbol);
     }
   }
 
   void _drawLedgerLines(
-      Canvas canvas, List<({int step, int kb, bool hovered, String? symbol})> notes) {
+      Canvas canvas, List<({int step, int kb, bool active, bool hovered, String? symbol})> notes) {
     final Set<int> ledgerSteps = {};
     for (final n in notes) {
       if (n.kb == 0) {
@@ -347,7 +349,7 @@ class _GrandStaffPainter extends CustomPainter {
     }
   }
 
-  void _drawWholeNote(Canvas canvas, int step, bool isHovered, String? symbol) {
+  void _drawWholeNote(Canvas canvas, int step, bool isActive, bool isHovered, String? symbol) {
     final y = _stepToY(step);
     final rect = Rect.fromCenter(
       center: Offset(_kNoteX, y),
@@ -355,18 +357,25 @@ class _GrandStaffPainter extends CustomPainter {
       height: _kNoteH,
     );
 
-    if (isHovered) {
+    if (isActive && isHovered) {
+      // Blue fill, black outline
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF4A90D9)
-        ..style = PaintingStyle.fill);
-    } else {
-      canvas.drawOval(rect, Paint()
-        ..color = Colors.white
         ..style = PaintingStyle.fill);
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF222222)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5);
+    } else if (isActive) {
+      // Solid black
+      canvas.drawOval(rect, Paint()
+        ..color = const Color(0xFF222222)
+        ..style = PaintingStyle.fill);
+    } else {
+      // Hovered only: blue fill, no outline
+      canvas.drawOval(rect, Paint()
+        ..color = const Color(0xFF4A90D9)
+        ..style = PaintingStyle.fill);
     }
 
     if (symbol != null) {
