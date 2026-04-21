@@ -178,6 +178,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
           onSongTitleChanged: (_) {},
           onSectionLabelChanged: (_) {},
           onChordSelected: (a, b) {},
+          grayedKeys: widget.grayedKeys,
         ),
       ),
     );
