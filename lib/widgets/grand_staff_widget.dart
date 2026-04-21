@@ -287,15 +287,15 @@ class _GrandStaffPainter extends CustomPainter {
   }
 
   void _drawNotes(Canvas canvas) {
-    // (step, keyboard) → (isActive, isHovered, symbol)
-    final Map<(int, int), (bool, bool, String?)> noteMap = {};
+    // (step, kb) → (isActive, activeSymbol, isHovered, hoveredSymbol)
+    final Map<(int, int), (bool, String?, bool, String?)> noteMap = {};
 
     if (activeKeys != null) {
       for (int kb = 0; kb < 2; kb++) {
         for (int s = 0; s < 24; s++) {
           if (!activeKeys![kb][s]) continue;
           final info = _resolveNote(kb, s);
-          if (info != null) noteMap[(info.step, kb)] = (true, false, info.symbol);
+          if (info != null) noteMap[(info.step, kb)] = (true, info.symbol, false, null);
         }
       }
     }
@@ -304,25 +304,27 @@ class _GrandStaffPainter extends CustomPainter {
       final info = _resolveNote(hoveredKeyboard!, hoveredSemitone!);
       if (info != null) {
         final key = (info.step, hoveredKeyboard!);
-        final wasActive = noteMap[key]?.$1 ?? false;
-        noteMap[key] = (wasActive, true, info.symbol);
+        final existing = noteMap[key];
+        noteMap[key] = (existing?.$1 ?? false, existing?.$2, true, info.symbol);
       }
     }
 
     if (noteMap.isEmpty) return;
 
-    final notes = noteMap.entries
-        .map((e) => (step: e.key.$1, kb: e.key.$2, active: e.value.$1, hovered: e.value.$2, symbol: e.value.$3))
-        .toList();
+    final notes = noteMap.entries.map((e) => (
+      step: e.key.$1, kb: e.key.$2,
+      isActive: e.value.$1, activeSymbol: e.value.$2,
+      isHovered: e.value.$3, hoveredSymbol: e.value.$4,
+    )).toList();
 
     _drawLedgerLines(canvas, notes);
     for (final n in notes) {
-      _drawWholeNote(canvas, n.step, n.active, n.hovered, n.symbol);
+      _drawWholeNote(canvas, n.step, n.isActive, n.activeSymbol, n.isHovered, n.hoveredSymbol);
     }
   }
 
   void _drawLedgerLines(
-      Canvas canvas, List<({int step, int kb, bool active, bool hovered, String? symbol})> notes) {
+      Canvas canvas, List<({int step, int kb, bool isActive, String? activeSymbol, bool isHovered, String? hoveredSymbol})> notes) {
     final Set<int> ledgerSteps = {};
     for (final n in notes) {
       if (n.kb == 0) {
@@ -349,7 +351,8 @@ class _GrandStaffPainter extends CustomPainter {
     }
   }
 
-  void _drawWholeNote(Canvas canvas, int step, bool isActive, bool isHovered, String? symbol) {
+  void _drawWholeNote(Canvas canvas, int step,
+      bool isActive, String? activeSymbol, bool isHovered, String? hoveredSymbol) {
     final y = _stepToY(step);
     final rect = Rect.fromCenter(
       center: Offset(_kNoteX, y),
@@ -357,8 +360,16 @@ class _GrandStaffPainter extends CustomPainter {
       height: _kNoteH,
     );
 
-    if (isActive && isHovered) {
-      // Blue fill, black outline
+    // Whether the hovered key produces the same accidental context as the active one.
+    final sameContext = isActive && isHovered && activeSymbol == hoveredSymbol;
+
+    if (isActive && !isHovered) {
+      // Solid black
+      canvas.drawOval(rect, Paint()
+        ..color = const Color(0xFF222222)
+        ..style = PaintingStyle.fill);
+    } else if (sameContext) {
+      // Active + hovered, same accidental: blue fill, black outline
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF4A90D9)
         ..style = PaintingStyle.fill);
@@ -366,25 +377,32 @@ class _GrandStaffPainter extends CustomPainter {
         ..color = const Color(0xFF222222)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5);
-    } else if (isActive) {
-      // Solid black
-      canvas.drawOval(rect, Paint()
-        ..color = const Color(0xFF222222)
-        ..style = PaintingStyle.fill);
     } else {
-      // Hovered only: blue fill, no outline
+      // Hovered only, or active+hovered with differing accidental: blue fill, no outline
       canvas.drawOval(rect, Paint()
         ..color = const Color(0xFF4A90D9)
         ..style = PaintingStyle.fill);
     }
 
+    // Symbol to display and its color.
+    final String? symbol;
+    final Color symbolColor;
+    if (isActive && !isHovered) {
+      symbol = activeSymbol;
+      symbolColor = const Color(0xFF222222);
+    } else if (sameContext) {
+      symbol = activeSymbol;
+      symbolColor = const Color(0xFF222222);
+    } else if (isHovered) {
+      symbol = hoveredSymbol;
+      symbolColor = const Color(0xFF4A90D9);
+    } else {
+      symbol = activeSymbol;
+      symbolColor = const Color(0xFF222222);
+    }
+
     if (symbol != null) {
-      _drawSymbol(
-        canvas, symbol,
-        _kNoteX - _kNoteW / 2 - 6,
-        y,
-        color: isHovered ? const Color(0xFF4A90D9) : const Color(0xFF222222),
-      );
+      _drawSymbol(canvas, symbol, _kNoteX - _kNoteW / 2 - 6, y, color: symbolColor);
     }
   }
 
