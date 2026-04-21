@@ -41,7 +41,6 @@ class _EditorPageState extends State<EditorPage> {
   final _pdfService = PdfService();
   bool _busy = false;
   bool _showGrandStaff = false;
-  Map<int, StaffAccidental> _keySig = const {};
   int? _hoveredSlot;
   int? _hoveredKeyboard;
   int? _hoveredSemitone;
@@ -165,7 +164,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   void _onKeySigChanged(Map<int, StaffAccidental> keySig) {
-    setState(() => _keySig = keySig);
+    setState(() => _document = _document.withKeySig(keySig));
   }
 
   // Semitones (0-23) that should be grayed when the key sig is active:
@@ -173,6 +172,7 @@ class _EditorPageState extends State<EditorPage> {
   // - black keys not covered by the key sig
   Set<int> get _grayedKeys {
     if (!_showGrandStaff) return const {};
+    final keySig = _document.keySig;
     const semiToNoteName = {0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6};
     const accidentalNames = {1: (0, 1), 3: (1, 2), 6: (3, 4), 8: (4, 5), 10: (5, 6)};
     final result = <int>{};
@@ -180,13 +180,13 @@ class _EditorPageState extends State<EditorPage> {
       final semiInOct = s % 12;
       final naturalName = semiToNoteName[semiInOct];
       if (naturalName != null) {
-        if (_keySig.containsKey(naturalName)) result.add(s);
+        if (keySig.containsKey(naturalName)) result.add(s);
       } else {
         final accInfo = accidentalNames[semiInOct];
         if (accInfo != null) {
           final (sharpOf, flatOf) = accInfo;
-          final covered = _keySig[sharpOf] == StaffAccidental.sharp ||
-              _keySig[flatOf] == StaffAccidental.flat;
+          final covered = keySig[sharpOf] == StaffAccidental.sharp ||
+              keySig[flatOf] == StaffAccidental.flat;
           if (!covered) result.add(s);
         }
       }
@@ -284,7 +284,7 @@ class _EditorPageState extends State<EditorPage> {
                   : null,
               hoveredKeyboard: _hoveredKeyboard,
               hoveredSemitone: _hoveredSemitone,
-              keySig: _keySig,
+              keySig: _document.keySig,
               onKeySigChanged: _onKeySigChanged,
             ),
           Expanded(

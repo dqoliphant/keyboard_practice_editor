@@ -1,0 +1,1 @@
+enum StaffAccidental { sharp, flat }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import '../models/staff_accidental.dart';
 
-enum StaffAccidental { sharp, flat }
+export '../models/staff_accidental.dart';
 
 // Layout constants
 const double _kStepH = 8.0;
