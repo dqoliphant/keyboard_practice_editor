@@ -88,7 +88,10 @@ class PianoKeyboardPainter extends CustomPainter {
       final double x = cx - blackW / 2;
 
       final fillPaint = Paint()
-        ..color = active ? kHighlightColor : (hovered ? kHoverColor : Colors.white)
+        ..color = active ? kHighlightColor
+            : hovered ? kHoverColor
+            : grayedKeys.contains(semi) ? kGrayedKeyColor
+            : Colors.white
         ..style = PaintingStyle.fill;
 
       final rect = Rect.fromLTWH(x, 0, blackW, blackH);
