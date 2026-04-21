@@ -46,6 +46,20 @@ const Map<int, int> _kBassKeySteps = {
   0: -7, 1: -6, 2: -5, 3: -4, 4: -3, 5: -2, 6: -8,
 };
 
+({String major, String minor}) _keyNames(Map<int, StaffAccidental> keySig) {
+  if (keySig.isEmpty) return (major: 'C', minor: 'A');
+  final allSharp = keySig.values.every((v) => v == StaffAccidental.sharp);
+  final allFlat  = keySig.values.every((v) => v == StaffAccidental.flat);
+  if (!allSharp && !allFlat) return (major: '?', minor: '?');
+  const sharpMajors = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯'];
+  const sharpMinors = ['A', 'E', 'B', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯'];
+  const flatMajors  = ['C', 'F', 'B♭', 'E♭', 'A♭', 'D♭', 'G♭', 'C♭'];
+  const flatMinors  = ['A', 'D', 'G', 'C', 'F', 'B♭', 'E♭', 'A♭'];
+  final n = keySig.length.clamp(0, 7);
+  if (allSharp) return (major: sharpMajors[n], minor: sharpMinors[n]);
+  return (major: flatMajors[n], minor: flatMinors[n]);
+}
+
 // ---------------------------------------------------------------------------
 
 class GrandStaffWidget extends StatelessWidget {
@@ -79,68 +93,93 @@ class GrandStaffWidget extends StatelessWidget {
     onKeySigChanged(updated);
   }
 
+  static const _labelStyle = TextStyle(
+    fontSize: 13,
+    fontWeight: FontWeight.w600,
+    color: Color(0xFF333333),
+    height: 1.2,
+  );
+  static const _sublabelStyle = TextStyle(
+    fontSize: 11,
+    fontStyle: FontStyle.italic,
+    color: Color(0xFF666666),
+    height: 1.2,
+  );
+
   @override
   Widget build(BuildContext context) {
+    final names = _keyNames(keySig);
+    final staffPanel = Container(
+      width: _kPanelWidth,
+      height: _kPanelHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 6,
+            offset: const Offset(2, 0),
+          ),
+        ],
+      ),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          onTapDown: _onTapDown,
+          child: Stack(
+            clipBehavior: Clip.hardEdge,
+            children: [
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _GrandStaffPainter(
+                    activeKeys: activeKeys,
+                    hoveredKeyboard: hoveredKeyboard,
+                    hoveredSemitone: hoveredSemitone,
+                    keySig: keySig,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 1,
+                top: _stepToY(10) - 8,
+                child: const IgnorePointer(
+                  child: Text(
+                    '\u{1D11E}',
+                    style: TextStyle(fontSize: 52, height: 1.0, color: Color(0xFF222222)),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 3,
+                top: _stepToY(-2) - 4,
+                child: const IgnorePointer(
+                  child: Text(
+                    '\u{1D122}',
+                    style: TextStyle(fontSize: 36, height: 1.0, color: Color(0xFF222222)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
     return Container(
       width: _kPanelWidth,
       color: const Color(0xFFD8D8D8),
       child: Center(
-        child: Container(
-          width: _kPanelWidth,
-          height: _kPanelHeight,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
-                blurRadius: 6,
-                offset: const Offset(2, 0),
-              ),
-            ],
-          ),
-          child: MouseRegion(
-            cursor: SystemMouseCursors.click,
-            child: GestureDetector(
-              onTapDown: _onTapDown,
-              child: Stack(
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _GrandStaffPainter(
-                        activeKeys: activeKeys,
-                        hoveredKeyboard: hoveredKeyboard,
-                        hoveredSemitone: hoveredSemitone,
-                        keySig: keySig,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 1,
-                    top: _stepToY(10) - 8,
-                    child: const IgnorePointer(
-                      child: Text(
-                        '\u{1D11E}', // 𝄞 MUSICAL SYMBOL G CLEF
-                        style: TextStyle(
-                            fontSize: 52, height: 1.0, color: Color(0xFF222222)),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 3,
-                    top: _stepToY(-2) - 4,
-                    child: const IgnorePointer(
-                      child: Text(
-                        '\u{1D122}', // 𝄢 MUSICAL SYMBOL F CLEF
-                        style: TextStyle(
-                            fontSize: 36, height: 1.0, color: Color(0xFF222222)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 6),
+            Text('${names.major} major', style: _labelStyle),
+            const SizedBox(height: 6),
+            staffPanel,
+            const SizedBox(height: 6),
+            Text('${names.minor} minor', style: _sublabelStyle),
+            const SizedBox(height: 6),
+          ],
         ),
       ),
     );
