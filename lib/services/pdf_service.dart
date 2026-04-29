@@ -169,26 +169,36 @@ class PdfService {
       final double keyW = w / 14;
       final double blackW = keyW * 0.6;
       final double blackH = h * 0.62;
+      const double r = 2.0;
 
       return pw.Stack(
         children: [
-          // White keys — full height, tiled across full width
+          // White keys — full height; borders drawn per-side to avoid doubling
           pw.Positioned.fill(
-            child: pw.Row(
-              children: List.generate(14, (i) {
-                final bool active = activeKeys[whiteKeyOrder[i]];
-                return pw.Expanded(
-                  child: pw.Container(
-                    decoration: pw.BoxDecoration(
-                      color: active ? PdfColors.blue400 : PdfColors.white,
-                      border: pw.Border.all(color: PdfColors.black, width: 0.3),
+            child: pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.black, width: 0.3),
+              ),
+              child: pw.Row(
+                children: List.generate(14, (i) {
+                  final bool active = activeKeys[whiteKeyOrder[i]];
+                  return pw.Expanded(
+                    child: pw.Container(
+                      decoration: pw.BoxDecoration(
+                        color: active ? PdfColors.blue400 : PdfColors.white,
+                        borderRadius: pw.BorderRadius.only(
+                          bottomLeft: pw.Radius.circular(r),
+                          bottomRight: pw.Radius.circular(r),
+                        ),
+                        border: pw.Border.all(color: PdfColors.black, width: 0.3),
+                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                }),
+              ),
             ),
           ),
-          // Black keys — sit at the top, shorter than white keys
+          // Black keys — shorter, rounded bottom, dark when inactive
           for (final (semi, leftWhite) in blackKeyDefs)
             pw.Positioned(
               left: (leftWhite + 1) * keyW - blackW / 2,
@@ -199,11 +209,11 @@ class PdfService {
                 child: pw.Container(
                   decoration: pw.BoxDecoration(
                     color: activeKeys[semi] ? PdfColors.blue400 : PdfColors.black,
-                    border: pw.Border(
-                      left: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
-                      bottom: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
-                      right: pw.BorderSide(color: PdfColors.grey900, width: 0.5),
+                    borderRadius: pw.BorderRadius.only(
+                      bottomLeft: pw.Radius.circular(r),
+                      bottomRight: pw.Radius.circular(r),
                     ),
+                    border: pw.Border.all(color: PdfColors.grey900, width: 0.5),
                   ),
                 ),
               ),

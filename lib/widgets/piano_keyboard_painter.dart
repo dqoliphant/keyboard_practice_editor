@@ -4,8 +4,10 @@ import '../models/practice_sheet.dart';
 const Color kHighlightColor = Color(0xFF4A90D9);
 const Color kHoverColor = Color(0xFFD6E8FA);
 const Color kGrayedKeyColor = Color(0xFFCCCCCC);
+const Color kBlackKeyColor = Color(0xFF1A1A1A);
 const Color kBlackKeyBorderColor = Color(0xFF222222);
 const Color kWhiteKeyBorderColor = Color(0xFF000000);
+const double kKeyBottomRadius = 3.0;
 
 class PianoKeyboardPainter extends CustomPainter {
   final List<bool> activeKeys;
@@ -31,85 +33,90 @@ class PianoKeyboardPainter extends CustomPainter {
     final double whiteH = size.height;
     final double blackW = whiteW * 0.6;
     final double blackH = whiteH * 0.62;
+    const double r = kKeyBottomRadius;
 
-    // White key x positions (semitone -> x offset in units of whiteW)
-    // C D E F G A B | C D E F G A B
-    // 0 2 4 5 7 9 11 | 12 14 16 17 19 21 23
     const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
-
-    // Draw white keys first
-    for (int i = 0; i < whiteKeyOrder.length; i++) {
-      final int semi = whiteKeyOrder[i];
-      final bool active = activeKeys[semi];
-      final bool hovered = hoveredSemitone == semi;
-      final Rect rect = Rect.fromLTWH(i * whiteW, 0, whiteW, whiteH);
-
-      final fillPaint = Paint()
-        ..color = active ? kHighlightColor
-            : hovered ? kHoverColor
-            : grayedKeys.contains(semi) ? kGrayedKeyColor
-            : Colors.white
-        ..style = PaintingStyle.fill;
-      canvas.drawRect(rect, fillPaint);
-
-      final borderPaint = Paint()
-        ..color = kWhiteKeyBorderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.5;
-      canvas.drawRect(rect, borderPaint);
-    }
-
-    // Black key positions: offset from left edge of preceding white key
-    // Pattern in one octave (7 white keys):
-    // C#(1) between C(0) and D(2): after white index 0
-    // D#(3) between D(2) and E(4): after white index 1
-    // F#(6) between F(5) and G(7): after white index 3
-    // G#(8) between G(7) and A(9): after white index 4
-    // A#(10) between A(9) and B(11): after white index 5
-    // Then repeat for octave 2 (add 7 to white index, 12 to semitone)
-    final blackKeyDefs = [
-      // (semitone, whiteIndexLeft) — black key sits between whiteIndexLeft and whiteIndexLeft+1
-      (1, 0),
-      (3, 1),
-      (6, 3),
-      (8, 4),
-      (10, 5),
-      (13, 7),
-      (15, 8),
-      (18, 10),
-      (20, 11),
-      (22, 12),
+    const blackKeyDefs = [
+      (1, 0), (3, 1), (6, 3), (8, 4), (10, 5),
+      (13, 7), (15, 8), (18, 10), (20, 11), (22, 12),
     ];
 
+    final fillPaint = Paint()..style = PaintingStyle.fill;
+
+    // White key fills — rounded bottom corners
+    for (int i = 0; i < whiteKeyOrder.length; i++) {
+      final int semi = whiteKeyOrder[i];
+      fillPaint.color = _whiteKeyColor(semi);
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(
+          i * whiteW, 0, (i + 1) * whiteW, whiteH,
+          bottomLeft: Radius.circular(r),
+          bottomRight: Radius.circular(r),
+        ),
+        fillPaint,
+      );
+    }
+
+    // White key borders: one RRect stroke per key so every key's bottom is rounded
+    final whiteBorder = Paint()
+      ..color = kWhiteKeyBorderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+    for (int i = 0; i < whiteKeyOrder.length; i++) {
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(
+          i * whiteW, 0, (i + 1) * whiteW, whiteH,
+          bottomLeft: Radius.circular(r),
+          bottomRight: Radius.circular(r),
+        ),
+        whiteBorder,
+      );
+    }
+
+    // Black key fills — rounded bottom corners, dark fill when inactive
+    final blackBorder = Paint()
+      ..color = kBlackKeyBorderColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
     for (final (semi, leftWhiteIdx) in blackKeyDefs) {
-      final bool active = activeKeys[semi];
-      final bool hovered = hoveredSemitone == semi;
       final double cx = (leftWhiteIdx + 1) * whiteW;
       final double x = cx - blackW / 2;
 
-      final fillPaint = Paint()
-        ..color = active ? kHighlightColor
-            : hovered ? kHoverColor
-            : grayedKeys.contains(semi) ? kGrayedKeyColor
-            : Colors.white
-        ..style = PaintingStyle.fill;
+      fillPaint.color = _blackKeyColor(semi);
+      canvas.drawRRect(
+        RRect.fromLTRBAndCorners(
+          x, 0, x + blackW, blackH,
+          bottomLeft: Radius.circular(r),
+          bottomRight: Radius.circular(r),
+        ),
+        fillPaint,
+      );
 
-      final rect = Rect.fromLTWH(x, 0, blackW, blackH);
-      canvas.drawRect(rect, fillPaint);
-
-      // Border: left, bottom, right only (no top border)
-      final borderPaint = Paint()
-        ..color = kBlackKeyBorderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5;
-
+      // U-shaped border: left side, rounded bottom, right side — no top edge
       final path = Path()
         ..moveTo(x, 0)
-        ..lineTo(x, blackH)
-        ..lineTo(x + blackW, blackH)
+        ..lineTo(x, blackH - r)
+        ..quadraticBezierTo(x, blackH, x + r, blackH)
+        ..lineTo(x + blackW - r, blackH)
+        ..quadraticBezierTo(x + blackW, blackH, x + blackW, blackH - r)
         ..lineTo(x + blackW, 0);
-      canvas.drawPath(path, borderPaint);
+      canvas.drawPath(path, blackBorder);
     }
+  }
+
+  Color _whiteKeyColor(int semi) {
+    if (activeKeys[semi]) return kHighlightColor;
+    if (hoveredSemitone == semi) return kHoverColor;
+    if (grayedKeys.contains(semi)) return kGrayedKeyColor;
+    return Colors.white;
+  }
+
+  Color _blackKeyColor(int semi) {
+    if (activeKeys[semi]) return kHighlightColor;
+    if (hoveredSemitone == semi) return kHoverColor;
+    if (grayedKeys.contains(semi)) return kGrayedKeyColor;
+    return kBlackKeyColor;
   }
 
   @override
