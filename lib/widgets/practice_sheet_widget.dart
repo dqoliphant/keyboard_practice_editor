@@ -61,8 +61,8 @@ class PracticeSheetWidget extends StatelessWidget {
   }
 
   List<Widget> _buildRows() {
-    const double rowGap = 8.0;
-    const double colGap = 8.0;
+    const double rowGap = 12.0;
+    const double colGap = 12.0;
     final rows = <Widget>[];
     for (int row = 0; row < 3; row++) {
       if (row > 0) rows.add(const SizedBox(height: rowGap));
@@ -104,7 +104,7 @@ class PracticeSheetWidget extends StatelessWidget {
       child: Container(
       width: kSheetWidth,
       height: kSheetHeight,
-      color: Colors.white,
+      color: const Color(0xFFF7F7F5),
       child: Padding(
         padding: const EdgeInsets.all(kSheetPadding),
         child: Column(

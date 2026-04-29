@@ -68,7 +68,7 @@ class PdfService {
                     final slotIdx = row * 4 + col;
                     return pw.Expanded(
                       child: pw.Padding(
-                        padding: const pw.EdgeInsets.all(3),
+                        padding: const pw.EdgeInsets.all(5),
                         child: sheet.occupiedSlots.contains(slotIdx)
                             ? _buildMeasure(
                                 sheet.measureNumberForSlot(slotIdx),
@@ -122,18 +122,19 @@ class PdfService {
   pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards, String? chord) {
     return pw.Container(
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey700, width: 0.5),
+        color: PdfColors.grey400,
+        borderRadius: pw.BorderRadius.circular(4),
       ),
       child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          // Header: measure number left, chord centred
           pw.Padding(
             padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1),
             child: pw.Row(
               children: [
                 pw.Text(
                   '$measureNumber',
-                  style: pw.TextStyle(fontSize: 7, color: PdfColors.grey600),
+                  style: pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
                 ),
                 pw.Expanded(
                   child: pw.Text(
@@ -146,10 +147,18 @@ class PdfService {
               ],
             ),
           ),
-          pw.Expanded(child: _buildKeyboard(keyboards[0])),
-          pw.SizedBox(height: 2),
-          pw.Expanded(child: _buildKeyboard(keyboards[1])),
-          pw.SizedBox(height: 2),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(3, 3, 3, 3),
+              child: _buildKeyboard(keyboards[0]),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(3, 0, 3, 3),
+              child: _buildKeyboard(keyboards[1]),
+            ),
+          ),
         ],
       ),
     );
@@ -176,9 +185,6 @@ class PdfService {
           // White keys — full height; borders drawn per-side to avoid doubling
           pw.Positioned.fill(
             child: pw.Container(
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.black, width: 0.3),
-              ),
               child: pw.Row(
                 children: List.generate(14, (i) {
                   final bool active = activeKeys[whiteKeyOrder[i]];

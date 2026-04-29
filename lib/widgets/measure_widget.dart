@@ -49,11 +49,13 @@ class MeasureWidget extends StatelessWidget {
       child: GestureDetector(
       onSecondaryTapUp: (d) => _showContextMenu(context, d.globalPosition),
       child: Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFF444444), width: 0.5),
+        color: const Color(0xFFE0E0E0),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ChordHeader(
             measureNumber: measureNumber,
@@ -62,20 +64,25 @@ class MeasureWidget extends StatelessWidget {
             onChordSelected: onChordSelected,
           ),
           Expanded(
-            child: PianoKeyboardWidget(
-              activeKeys: keyboards[0],
-              onKeyTap: (semi) => onKeyTap(0, semi),
-              onKeyHover: (s) => onKeyHover?.call(0, s),
-              grayedKeys: grayedKeys,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+              child: PianoKeyboardWidget(
+                activeKeys: keyboards[0],
+                onKeyTap: (semi) => onKeyTap(0, semi),
+                onKeyHover: (s) => onKeyHover?.call(0, s),
+                grayedKeys: grayedKeys,
+              ),
             ),
           ),
-          const SizedBox(height: 10.0),
           Expanded(
-            child: PianoKeyboardWidget(
-              activeKeys: keyboards[1],
-              onKeyTap: (semi) => onKeyTap(1, semi),
-              onKeyHover: (s) => onKeyHover?.call(1, s),
-              grayedKeys: grayedKeys,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+              child: PianoKeyboardWidget(
+                activeKeys: keyboards[1],
+                onKeyTap: (semi) => onKeyTap(1, semi),
+                onKeyHover: (s) => onKeyHover?.call(1, s),
+                grayedKeys: grayedKeys,
+              ),
             ),
           ),
         ],
