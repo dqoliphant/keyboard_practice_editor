@@ -12,6 +12,10 @@ class PageNavigatorWidget extends StatefulWidget {
   final PracticeDocument document;
   final void Function(int slotIdx, int kb, int semi) onKeyTap;
   final void Function(int slotIdx, int kb, int semi) onKeyFingerCycle;
+  final void Function(int slotIdx) onCopyMeasure;
+  final void Function(int slotIdx) onPasteValues;
+  final void Function(int slotIdx) onPasteNewMeasure;
+  final bool hasClipboard;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
   final void Function(int pageIndex) onGoToPage;
@@ -30,6 +34,10 @@ class PageNavigatorWidget extends StatefulWidget {
     required this.document,
     required this.onKeyTap,
     required this.onKeyFingerCycle,
+    required this.onCopyMeasure,
+    required this.onPasteValues,
+    required this.onPasteNewMeasure,
+    required this.hasClipboard,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
     required this.onGoToPage,
@@ -157,6 +165,10 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         songTitle: songTitle,
         onKeyTap: widget.onKeyTap,
         onKeyFingerCycle: widget.onKeyFingerCycle,
+        onCopyMeasure: widget.onCopyMeasure,
+        onPasteValues: widget.onPasteValues,
+        onPasteNewMeasure: widget.onPasteNewMeasure,
+        hasClipboard: widget.hasClipboard,
         onAddMeasure: widget.onAddMeasure,
         onDeleteMeasure: widget.onDeleteMeasure,
         onDeletePage: widget.onDeletePage,
@@ -177,6 +189,10 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
           songTitle: songTitle,
           onKeyTap: (a, b, c) {},
           onKeyFingerCycle: (a, b, c) {},
+          onCopyMeasure: (a) {},
+          onPasteValues: (a) {},
+          onPasteNewMeasure: (a) {},
+          hasClipboard: false,
           onAddMeasure: (a) {},
           onDeleteMeasure: (a) {},
           onSongTitleChanged: (_) {},

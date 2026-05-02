@@ -9,6 +9,8 @@ class MeasureWidget extends StatefulWidget {
   final String? chordOverride;
   final void Function(int keyboardIdx, int semitone) onKeyTap;
   final void Function(int keyboardIdx, int semitone) onKeyFingerCycle;
+  final VoidCallback onCopy;
+  final VoidCallback? onPasteValues;
   final void Function(String chord) onChordSelected;
   final VoidCallback onDelete;
   final void Function(int keyboard, int? semitone)? onKeyHover;
@@ -24,6 +26,8 @@ class MeasureWidget extends StatefulWidget {
     required this.chordOverride,
     required this.onKeyTap,
     required this.onKeyFingerCycle,
+    required this.onCopy,
+    this.onPasteValues,
     required this.onChordSelected,
     required this.onDelete,
     this.onKeyHover,
@@ -48,10 +52,16 @@ class _MeasureWidgetState extends State<MeasureWidget> {
       position: RelativeRect.fromLTRB(
         globalPos.dx, globalPos.dy, globalPos.dx, globalPos.dy,
       ),
-      items: const [
-        PopupMenuItem(value: 'delete', child: Text('Delete measure')),
+      items: [
+        const PopupMenuItem(value: 'copy', child: Text('Copy')),
+        if (widget.onPasteValues != null)
+          const PopupMenuItem(value: 'paste_values', child: Text('Paste Values')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: 'delete', child: Text('Delete measure')),
       ],
     );
+    if (result == 'copy') widget.onCopy();
+    if (result == 'paste_values') widget.onPasteValues?.call();
     if (result == 'delete') widget.onDelete();
   }
 

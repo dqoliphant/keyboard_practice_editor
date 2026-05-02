@@ -2,10 +2,32 @@ import 'package:flutter/material.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'models/practice_document.dart';
+import 'models/practice_sheet.dart';
 import 'widgets/grand_staff_widget.dart';
 import 'widgets/page_navigator_widget.dart';
 import 'services/file_service.dart';
 import 'services/pdf_service.dart';
+
+class _MeasureClipboard {
+  final List<List<bool>> keyboards;
+  final List<List<int>> fingerNumbers;
+  final String? chordOverride;
+
+  _MeasureClipboard._({
+    required this.keyboards,
+    required this.fingerNumbers,
+    this.chordOverride,
+  });
+
+  factory _MeasureClipboard.from(PracticeSheet sheet, int slotIdx) =>
+      _MeasureClipboard._(
+        keyboards: List.generate(kKeyboardsPerMeasure,
+            (kb) => List<bool>.from(sheet.state[slotIdx][kb])),
+        fingerNumbers: List.generate(kKeyboardsPerMeasure,
+            (kb) => List<int>.from(sheet.fingerNumbers[slotIdx][kb])),
+        chordOverride: sheet.chordOverrides[slotIdx],
+      );
+}
 
 void main() {
   runApp(const KeyboardPracticeApp());
@@ -44,6 +66,7 @@ class _EditorPageState extends State<EditorPage> {
   int? _hoveredSlot;
   int? _hoveredKeyboard;
   int? _hoveredSemitone;
+  _MeasureClipboard? _clipboard;
 
   void _toggleKey(int slotIdx, int keyboard, int semitone) {
     setState(() => _document.currentPage.toggle(slotIdx, keyboard, semitone));
@@ -51,6 +74,47 @@ class _EditorPageState extends State<EditorPage> {
 
   void _cycleKeyFinger(int slotIdx, int keyboard, int semitone) {
     setState(() => _document.currentPage.cycleFinger(slotIdx, keyboard, semitone));
+  }
+
+  void _copyMeasure(int slotIdx) {
+    setState(() => _clipboard = _MeasureClipboard.from(_document.currentPage, slotIdx));
+  }
+
+  void _pasteValues(int slotIdx) {
+    final clip = _clipboard;
+    if (clip == null) return;
+    final page = _document.currentPage;
+    setState(() {
+      for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
+        for (int semi = 0; semi < kSemitones; semi++) {
+          page.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
+          page.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+        }
+      }
+      if (clip.chordOverride != null) {
+        _document = _document.withCurrentPageUpdated(
+          page.withChordOverride(slotIdx, clip.chordOverride!),
+        );
+      }
+    });
+  }
+
+  void _pasteNewMeasure(int slotIdx) {
+    final clip = _clipboard;
+    if (clip == null) return;
+    setState(() {
+      var newPage = _document.currentPage.withSlotAdded(slotIdx);
+      for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
+        for (int semi = 0; semi < kSemitones; semi++) {
+          newPage.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
+          newPage.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+        }
+      }
+      if (clip.chordOverride != null) {
+        newPage = newPage.withChordOverride(slotIdx, clip.chordOverride!);
+      }
+      _document = _document.withCurrentPageUpdated(newPage);
+    });
   }
 
   void _addMeasure(int slotIdx) {
@@ -299,6 +363,10 @@ class _EditorPageState extends State<EditorPage> {
               document: _document,
               onKeyTap: _toggleKey,
               onKeyFingerCycle: _cycleKeyFinger,
+              onCopyMeasure: _copyMeasure,
+              onPasteValues: _pasteValues,
+              onPasteNewMeasure: _pasteNewMeasure,
+              hasClipboard: _clipboard != null,
               onAddMeasure: _addMeasure,
               onDeleteMeasure: _deleteMeasure,
               onGoToPage: _goToPage,

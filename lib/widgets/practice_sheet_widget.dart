@@ -13,6 +13,10 @@ class PracticeSheetWidget extends StatelessWidget {
   final String songTitle;
   final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
   final void Function(int slotIdx, int keyboard, int semitone) onKeyFingerCycle;
+  final void Function(int slotIdx) onCopyMeasure;
+  final void Function(int slotIdx) onPasteValues;
+  final void Function(int slotIdx) onPasteNewMeasure;
+  final bool hasClipboard;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
   final VoidCallback? onDeletePage;
@@ -29,6 +33,10 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.songTitle,
     required this.onKeyTap,
     required this.onKeyFingerCycle,
+    required this.onCopyMeasure,
+    required this.onPasteValues,
+    required this.onPasteNewMeasure,
+    required this.hasClipboard,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
     this.onDeletePage,
@@ -49,6 +57,8 @@ class PracticeSheetWidget extends StatelessWidget {
         chordOverride: sheet.chordOverrides[slotIdx],
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
         onKeyFingerCycle: (kb, semi) => onKeyFingerCycle(slotIdx, kb, semi),
+        onCopy: () => onCopyMeasure(slotIdx),
+        onPasteValues: hasClipboard ? () => onPasteValues(slotIdx) : null,
         onChordSelected: (chord) => onChordSelected(slotIdx, chord),
         onDelete: () => onDeleteMeasure(slotIdx),
         onKeyHover: (kb, s) => onKeyHover?.call(slotIdx, kb, s),
@@ -61,6 +71,8 @@ class PracticeSheetWidget extends StatelessWidget {
     return _EmptySlotCell(
       persistent: persistent,
       onTap: () => onAddMeasure(slotIdx),
+      onPaste: hasClipboard ? () => onPasteNewMeasure(slotIdx) : null,
+      onDeletePage: onDeletePage,
     );
   }
 
@@ -269,8 +281,15 @@ class _SheetHeaderWidgetState extends State<_SheetHeaderWidget> {
 class _EmptySlotCell extends StatefulWidget {
   final bool persistent;
   final VoidCallback onTap;
+  final VoidCallback? onPaste;
+  final VoidCallback? onDeletePage;
 
-  const _EmptySlotCell({required this.persistent, required this.onTap});
+  const _EmptySlotCell({
+    required this.persistent,
+    required this.onTap,
+    this.onPaste,
+    this.onDeletePage,
+  });
 
   @override
   State<_EmptySlotCell> createState() => _EmptySlotCellState();
@@ -288,6 +307,27 @@ class _EmptySlotCellState extends State<_EmptySlotCell> {
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
         onTap: show ? widget.onTap : null,
+        onSecondaryTapUp: (widget.onPaste != null || widget.onDeletePage != null)
+            ? (d) async {
+                final result = await showMenu<String>(
+                  context: context,
+                  position: RelativeRect.fromLTRB(
+                    d.globalPosition.dx, d.globalPosition.dy,
+                    d.globalPosition.dx, d.globalPosition.dy,
+                  ),
+                  items: [
+                    if (widget.onPaste != null)
+                      const PopupMenuItem(value: 'paste', child: Text('Paste')),
+                    if (widget.onPaste != null && widget.onDeletePage != null)
+                      const PopupMenuDivider(),
+                    if (widget.onDeletePage != null)
+                      const PopupMenuItem(value: 'delete_page', child: Text('Delete Page')),
+                  ],
+                );
+                if (result == 'paste') widget.onPaste!();
+                if (result == 'delete_page') widget.onDeletePage!();
+              }
+            : null,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           decoration: show
