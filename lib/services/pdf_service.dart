@@ -74,6 +74,7 @@ class PdfService {
                                 sheet.measureNumberForSlot(slotIdx),
                                 sheet.state[slotIdx],
                                 sheet.activeChordForSlot(slotIdx),
+                                sheet.fingerNumbers[slotIdx],
                               )
                             : pw.SizedBox(),
                       ),
@@ -119,7 +120,7 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards, String? chord) {
+  pw.Widget _buildMeasure(int measureNumber, List<List<bool>> keyboards, String? chord, List<List<int>> fingerNumbers) {
     return pw.Container(
       decoration: pw.BoxDecoration(
         color: PdfColors.grey400,
@@ -150,13 +151,13 @@ class PdfService {
           pw.Expanded(
             child: pw.Padding(
               padding: const pw.EdgeInsets.fromLTRB(3, 3, 3, 3),
-              child: _buildKeyboard(keyboards[0]),
+              child: _buildKeyboard(keyboards[0], fingerNumbers[0]),
             ),
           ),
           pw.Expanded(
             child: pw.Padding(
               padding: const pw.EdgeInsets.fromLTRB(3, 0, 3, 3),
-              child: _buildKeyboard(keyboards[1]),
+              child: _buildKeyboard(keyboards[1], fingerNumbers[1]),
             ),
           ),
         ],
@@ -165,7 +166,7 @@ class PdfService {
   }
 
   // Keyboard rendered as widgets so layout constraints are respected.
-  pw.Widget _buildKeyboard(List<bool> activeKeys) {
+  pw.Widget _buildKeyboard(List<bool> activeKeys, List<int> fingerNumbers) {
     const whiteKeyOrder = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23];
     const blackKeyDefs = [
       (1, 0), (3, 1), (6, 3), (8, 4), (10, 5),
@@ -179,6 +180,9 @@ class PdfService {
       final double blackW = keyW * 0.6;
       final double blackH = h * 0.62;
       const double r = 2.0;
+      final double fontSize = (keyW * 0.55).clamp(4.0, 8.0);
+
+      bool isActive(int semi) => activeKeys[semi] || fingerNumbers[semi] > 0;
 
       return pw.Stack(
         children: [
@@ -187,11 +191,11 @@ class PdfService {
             child: pw.Container(
               child: pw.Row(
                 children: List.generate(14, (i) {
-                  final bool active = activeKeys[whiteKeyOrder[i]];
+                  final semi = whiteKeyOrder[i];
                   return pw.Expanded(
                     child: pw.Container(
                       decoration: pw.BoxDecoration(
-                        color: active ? PdfColors.blue400 : PdfColors.white,
+                        color: isActive(semi) ? PdfColors.blue400 : PdfColors.white,
                         borderRadius: pw.BorderRadius.only(
                           bottomLeft: pw.Radius.circular(r),
                           bottomRight: pw.Radius.circular(r),
@@ -214,7 +218,7 @@ class PdfService {
                 height: blackH,
                 child: pw.Container(
                   decoration: pw.BoxDecoration(
-                    color: activeKeys[semi] ? PdfColors.blue400 : PdfColors.black,
+                    color: isActive(semi) ? PdfColors.blue400 : PdfColors.black,
                     borderRadius: pw.BorderRadius.only(
                       bottomLeft: pw.Radius.circular(r),
                       bottomRight: pw.Radius.circular(r),
@@ -224,6 +228,44 @@ class PdfService {
                 ),
               ),
             ),
+          // Finger numbers on white keys
+          for (int i = 0; i < 14; i++)
+            if (fingerNumbers[whiteKeyOrder[i]] > 0)
+              pw.Positioned(
+                left: i * keyW,
+                bottom: (h - blackH) * 0.1,
+                child: pw.SizedBox(
+                  width: keyW,
+                  child: pw.Text(
+                    '${fingerNumbers[whiteKeyOrder[i]]}',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: fontSize,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          // Finger numbers on black keys
+          for (final (semi, leftWhite) in blackKeyDefs)
+            if (fingerNumbers[semi] > 0)
+              pw.Positioned(
+                left: (leftWhite + 1) * keyW - blackW / 2,
+                top: blackH * 0.45,
+                child: pw.SizedBox(
+                  width: blackW,
+                  child: pw.Text(
+                    '${fingerNumbers[semi]}',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      color: PdfColors.white,
+                      fontSize: fontSize * 0.85,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
         ],
       );
     });

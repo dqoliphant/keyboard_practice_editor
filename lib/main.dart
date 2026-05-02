@@ -49,6 +49,10 @@ class _EditorPageState extends State<EditorPage> {
     setState(() => _document.currentPage.toggle(slotIdx, keyboard, semitone));
   }
 
+  void _cycleKeyFinger(int slotIdx, int keyboard, int semitone) {
+    setState(() => _document.currentPage.cycleFinger(slotIdx, keyboard, semitone));
+  }
+
   void _addMeasure(int slotIdx) {
     setState(() => _document = _document.withCurrentPageUpdated(
           _document.currentPage.withSlotAdded(slotIdx),
@@ -294,6 +298,7 @@ class _EditorPageState extends State<EditorPage> {
             child: PageNavigatorWidget(
               document: _document,
               onKeyTap: _toggleKey,
+              onKeyFingerCycle: _cycleKeyFinger,
               onAddMeasure: _addMeasure,
               onDeleteMeasure: _deleteMeasure,
               onGoToPage: _goToPage,

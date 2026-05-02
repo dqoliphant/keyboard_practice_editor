@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/chord_detector.dart';
 import 'piano_keyboard_painter.dart';
 
-class MeasureWidget extends StatelessWidget {
+class MeasureWidget extends StatefulWidget {
   final int measureNumber;
   final List<List<bool>> keyboards; // [2][24]
+  final List<List<int>> fingerNumbers; // [2][24]
   final String? chordOverride;
   final void Function(int keyboardIdx, int semitone) onKeyTap;
+  final void Function(int keyboardIdx, int semitone) onKeyFingerCycle;
   final void Function(String chord) onChordSelected;
   final VoidCallback onDelete;
   final void Function(int keyboard, int? semitone)? onKeyHover;
@@ -18,8 +20,10 @@ class MeasureWidget extends StatelessWidget {
     super.key,
     required this.measureNumber,
     required this.keyboards,
+    required this.fingerNumbers,
     required this.chordOverride,
     required this.onKeyTap,
+    required this.onKeyFingerCycle,
     required this.onChordSelected,
     required this.onDelete,
     this.onKeyHover,
@@ -28,7 +32,17 @@ class MeasureWidget extends StatelessWidget {
     this.grayedKeys = const {},
   });
 
-  void _showContextMenu(BuildContext context, Offset globalPos) async {
+  @override
+  State<MeasureWidget> createState() => _MeasureWidgetState();
+}
+
+class _MeasureWidgetState extends State<MeasureWidget> {
+  // Tracks which key (if any) the pointer is currently over, so the outer
+  // secondary-tap handler knows whether to show the delete menu or let the
+  // key's own right-click handler take precedence.
+  int? _hoveredSemitone;
+
+  void _showContextMenu(Offset globalPos) async {
     final result = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -38,16 +52,25 @@ class MeasureWidget extends StatelessWidget {
         PopupMenuItem(value: 'delete', child: Text('Delete measure')),
       ],
     );
-    if (result == 'delete') onDelete();
+    if (result == 'delete') widget.onDelete();
+  }
+
+  void _onKeyHover(int kb, int? semitone) {
+    setState(() => _hoveredSemitone = semitone);
+    widget.onKeyHover?.call(kb, semitone);
   }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: (_) => onMeasureEnter?.call(),
-      onExit: (_) => onMeasureExit?.call(),
+      onEnter: (_) => widget.onMeasureEnter?.call(),
+      onExit: (_) => widget.onMeasureExit?.call(),
       child: GestureDetector(
-      onSecondaryTapUp: (d) => _showContextMenu(context, d.globalPosition),
+      // Show delete menu on right-click anywhere on the measure, but only when
+      // no key is hovered (otherwise the key's onSecondaryTapDown handles it).
+      onSecondaryTapUp: (d) {
+        if (_hoveredSemitone == null) _showContextMenu(d.globalPosition);
+      },
       child: Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -58,19 +81,21 @@ class MeasureWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _ChordHeader(
-            measureNumber: measureNumber,
-            keyboards: keyboards,
-            chordOverride: chordOverride,
-            onChordSelected: onChordSelected,
+            measureNumber: widget.measureNumber,
+            keyboards: widget.keyboards,
+            chordOverride: widget.chordOverride,
+            onChordSelected: widget.onChordSelected,
           ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
               child: PianoKeyboardWidget(
-                activeKeys: keyboards[0],
-                onKeyTap: (semi) => onKeyTap(0, semi),
-                onKeyHover: (s) => onKeyHover?.call(0, s),
-                grayedKeys: grayedKeys,
+                activeKeys: widget.keyboards[0],
+                fingerNumbers: widget.fingerNumbers[0],
+                onKeyTap: (semi) => widget.onKeyTap(0, semi),
+                onKeyRightClick: (semi) => widget.onKeyFingerCycle(0, semi),
+                onKeyHover: (s) => _onKeyHover(0, s),
+                grayedKeys: widget.grayedKeys,
               ),
             ),
           ),
@@ -78,10 +103,12 @@ class MeasureWidget extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
               child: PianoKeyboardWidget(
-                activeKeys: keyboards[1],
-                onKeyTap: (semi) => onKeyTap(1, semi),
-                onKeyHover: (s) => onKeyHover?.call(1, s),
-                grayedKeys: grayedKeys,
+                activeKeys: widget.keyboards[1],
+                fingerNumbers: widget.fingerNumbers[1],
+                onKeyTap: (semi) => widget.onKeyTap(1, semi),
+                onKeyRightClick: (semi) => widget.onKeyFingerCycle(1, semi),
+                onKeyHover: (s) => _onKeyHover(1, s),
+                grayedKeys: widget.grayedKeys,
               ),
             ),
           ),

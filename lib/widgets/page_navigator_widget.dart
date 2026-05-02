@@ -11,6 +11,7 @@ const double _kPageGap = 56.0;
 class PageNavigatorWidget extends StatefulWidget {
   final PracticeDocument document;
   final void Function(int slotIdx, int kb, int semi) onKeyTap;
+  final void Function(int slotIdx, int kb, int semi) onKeyFingerCycle;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
   final void Function(int pageIndex) onGoToPage;
@@ -28,6 +29,7 @@ class PageNavigatorWidget extends StatefulWidget {
     super.key,
     required this.document,
     required this.onKeyTap,
+    required this.onKeyFingerCycle,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
     required this.onGoToPage,
@@ -154,6 +156,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         sheet: sheet,
         songTitle: songTitle,
         onKeyTap: widget.onKeyTap,
+        onKeyFingerCycle: widget.onKeyFingerCycle,
         onAddMeasure: widget.onAddMeasure,
         onDeleteMeasure: widget.onDeleteMeasure,
         onDeletePage: widget.onDeletePage,
@@ -173,6 +176,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
           sheet: sheet,
           songTitle: songTitle,
           onKeyTap: (a, b, c) {},
+          onKeyFingerCycle: (a, b, c) {},
           onAddMeasure: (a) {},
           onDeleteMeasure: (a) {},
           onSongTitleChanged: (_) {},

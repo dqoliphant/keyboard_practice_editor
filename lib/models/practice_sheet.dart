@@ -26,6 +26,9 @@ class PracticeSheet {
   // [slot][keyboard][semitone] = active? — always 12 slots allocated
   final List<List<List<bool>>> state;
 
+  // [slot][keyboard][semitone] = finger number 1–5, or 0 for none
+  final List<List<List<int>>> fingerNumbers;
+
   // Which of the 12 grid slots are occupied (have a visible measure)
   final Set<int> occupiedSlots;
 
@@ -43,17 +46,45 @@ class PracticeSheet {
             kKeyboardsPerMeasure,
             (_) => List.filled(kSemitones, false),
           ),
+        ),
+        fingerNumbers = List.generate(
+          kMeasureCount,
+          (_) => List.generate(
+            kKeyboardsPerMeasure,
+            (_) => List.filled(kSemitones, 0),
+          ),
         );
 
-  PracticeSheet.fromState(this.state,
-      {required Set<int> occupiedSlots,
-      this.sectionLabel = '',
-      Map<int, String>? chordOverrides})
-      : occupiedSlots = Set.unmodifiable(occupiedSlots),
-        chordOverrides = Map.unmodifiable(chordOverrides ?? {});
+  PracticeSheet.fromState(
+    this.state, {
+    required Set<int> occupiedSlots,
+    this.sectionLabel = '',
+    Map<int, String>? chordOverrides,
+    List<List<List<int>>>? fingerNumbers,
+  })  : occupiedSlots = Set.unmodifiable(occupiedSlots),
+        chordOverrides = Map.unmodifiable(chordOverrides ?? {}),
+        fingerNumbers = fingerNumbers ??
+            List.generate(
+              kMeasureCount,
+              (_) => List.generate(
+                kKeyboardsPerMeasure,
+                (_) => List.filled(kSemitones, 0),
+              ),
+            );
 
   void toggle(int slotIdx, int keyboard, int semitone) {
-    state[slotIdx][keyboard][semitone] = !state[slotIdx][keyboard][semitone];
+    if (fingerNumbers[slotIdx][keyboard][semitone] > 0) {
+      fingerNumbers[slotIdx][keyboard][semitone] = 0;
+      state[slotIdx][keyboard][semitone] = false;
+    } else {
+      state[slotIdx][keyboard][semitone] = !state[slotIdx][keyboard][semitone];
+    }
+  }
+
+  // Cycles finger number for a key: 0 → 1 → 2 → 3 → 4 → 5 → 0
+  void cycleFinger(int slotIdx, int keyboard, int semitone) {
+    final cur = fingerNumbers[slotIdx][keyboard][semitone];
+    fingerNumbers[slotIdx][keyboard][semitone] = cur >= 5 ? 0 : cur + 1;
   }
 
   /// Display number for an occupied slot (1-based rank among occupied slots).
@@ -84,7 +115,8 @@ class PracticeSheet {
   PracticeSheet withSectionLabel(String label) => PracticeSheet.fromState(state,
       occupiedSlots: occupiedSlots,
       sectionLabel: label,
-      chordOverrides: chordOverrides);
+      chordOverrides: chordOverrides,
+      fingerNumbers: fingerNumbers);
 
   PracticeSheet withSlotRemoved(int slotIdx) {
     final newSlots = Set<int>.from(occupiedSlots)..remove(slotIdx);
@@ -92,7 +124,8 @@ class PracticeSheet {
     return PracticeSheet.fromState(state,
         occupiedSlots: newSlots,
         sectionLabel: sectionLabel,
-        chordOverrides: newOverrides);
+        chordOverrides: newOverrides,
+        fingerNumbers: fingerNumbers);
   }
 
   PracticeSheet withSlotAdded(int slotIdx) {
@@ -105,11 +138,21 @@ class PracticeSheet {
             : List<bool>.from(state[mi][ki]),
       ),
     );
+    final newFingers = List.generate(
+      kMeasureCount,
+      (mi) => List.generate(
+        kKeyboardsPerMeasure,
+        (ki) => mi == slotIdx
+            ? List.filled(kSemitones, 0)
+            : List<int>.from(fingerNumbers[mi][ki]),
+      ),
+    );
     return PracticeSheet.fromState(
       newState,
       occupiedSlots: {...occupiedSlots, slotIdx},
       sectionLabel: sectionLabel,
       chordOverrides: chordOverrides,
+      fingerNumbers: newFingers,
     );
   }
 
@@ -118,8 +161,12 @@ class PracticeSheet {
     return PracticeSheet.fromState(state,
         occupiedSlots: occupiedSlots,
         sectionLabel: sectionLabel,
-        chordOverrides: newOverrides);
+        chordOverrides: newOverrides,
+        fingerNumbers: fingerNumbers);
   }
+
+  bool get _hasFingerNumbers =>
+      fingerNumbers.any((m) => m.any((k) => k.any((v) => v > 0)));
 
   Map<String, dynamic> toJson() => {
         'occupiedSlots': (occupiedSlots.toList()..sort()),
@@ -130,6 +177,10 @@ class PracticeSheet {
         'state': state
             .map((m) => m.map((k) => k.map((v) => v ? 1 : 0).toList()).toList())
             .toList(),
+        if (_hasFingerNumbers)
+          'fingerNumbers': fingerNumbers
+              .map((m) => m.map((k) => k.toList()).toList())
+              .toList(),
       };
 
   factory PracticeSheet.fromJson(Map<String, dynamic> json) {
@@ -151,10 +202,24 @@ class PracticeSheet {
     final overrides = rawOverrides != null
         ? rawOverrides.map((k, v) => MapEntry(int.parse(k), v as String))
         : <int, String>{};
+    final rawFingers = json['fingerNumbers'] as List?;
+    final fingers = rawFingers != null
+        ? List.generate(
+            kMeasureCount,
+            (mi) => List.generate(
+              kKeyboardsPerMeasure,
+              (ki) => List.generate(
+                kSemitones,
+                (si) => (rawFingers[mi][ki][si] as int),
+              ),
+            ),
+          )
+        : null;
     return PracticeSheet.fromState(s,
         occupiedSlots: slots,
         sectionLabel: json['sectionLabel'] as String? ?? '',
-        chordOverrides: overrides);
+        chordOverrides: overrides,
+        fingerNumbers: fingers);
   }
 
   String toJsonString() => jsonEncode(toJson());

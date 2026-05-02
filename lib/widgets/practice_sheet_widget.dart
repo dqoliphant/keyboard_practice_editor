@@ -12,6 +12,7 @@ class PracticeSheetWidget extends StatelessWidget {
   final PracticeSheet sheet;
   final String songTitle;
   final void Function(int slotIdx, int keyboard, int semitone) onKeyTap;
+  final void Function(int slotIdx, int keyboard, int semitone) onKeyFingerCycle;
   final void Function(int slotIdx) onAddMeasure;
   final void Function(int slotIdx) onDeleteMeasure;
   final VoidCallback? onDeletePage;
@@ -27,6 +28,7 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.sheet,
     required this.songTitle,
     required this.onKeyTap,
+    required this.onKeyFingerCycle,
     required this.onAddMeasure,
     required this.onDeleteMeasure,
     this.onDeletePage,
@@ -43,8 +45,10 @@ class PracticeSheetWidget extends StatelessWidget {
       return MeasureWidget(
         measureNumber: sheet.measureNumberForSlot(slotIdx),
         keyboards: sheet.state[slotIdx],
+        fingerNumbers: sheet.fingerNumbers[slotIdx],
         chordOverride: sheet.chordOverrides[slotIdx],
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
+        onKeyFingerCycle: (kb, semi) => onKeyFingerCycle(slotIdx, kb, semi),
         onChordSelected: (chord) => onChordSelected(slotIdx, chord),
         onDelete: () => onDeleteMeasure(slotIdx),
         onKeyHover: (kb, s) => onKeyHover?.call(slotIdx, kb, s),
