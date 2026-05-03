@@ -34,6 +34,7 @@ class PracticeSheetWidget extends StatelessWidget {
   final void Function(int slotIdx, int stringIdx)? onGuitarFingerCycled;
   final void Function(int slotIdx, String name)? onGuitarChordNameChanged;
   final void Function(int slotIdx, int delta)? onGuitarStartFretChanged;
+  final void Function(int? keyboard, int? semitone)? onGuitarNoteHover;
 
   const PracticeSheetWidget({
     super.key,
@@ -61,6 +62,7 @@ class PracticeSheetWidget extends StatelessWidget {
     this.onGuitarFingerCycled,
     this.onGuitarChordNameChanged,
     this.onGuitarStartFretChanged,
+    this.onGuitarNoteHover,
   });
 
   Widget _cellForSlot(int slotIdx) {
@@ -99,6 +101,7 @@ class PracticeSheetWidget extends StatelessWidget {
         onGuitarStartFretChanged: onGuitarStartFretChanged != null
             ? (delta) => onGuitarStartFretChanged!(slotIdx, delta)
             : null,
+        onGuitarNoteHover: onGuitarNoteHover,
       );
     }
     final persistent = slotIdx == sheet.firstUnoccupiedSlot;

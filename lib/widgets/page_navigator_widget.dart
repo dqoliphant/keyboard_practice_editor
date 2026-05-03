@@ -36,6 +36,7 @@ class PageNavigatorWidget extends StatefulWidget {
   final void Function(int slotIdx, int stringIdx)? onGuitarFingerCycled;
   final void Function(int slotIdx, String name)? onGuitarChordNameChanged;
   final void Function(int slotIdx, int delta)? onGuitarStartFretChanged;
+  final void Function(int? keyboard, int? semitone)? onGuitarNoteHover;
 
   const PageNavigatorWidget({
     super.key,
@@ -65,6 +66,7 @@ class PageNavigatorWidget extends StatefulWidget {
     this.onGuitarFingerCycled,
     this.onGuitarChordNameChanged,
     this.onGuitarStartFretChanged,
+    this.onGuitarNoteHover,
   });
 
   @override
@@ -200,6 +202,7 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         onGuitarFingerCycled: widget.onGuitarFingerCycled,
         onGuitarChordNameChanged: widget.onGuitarChordNameChanged,
         onGuitarStartFretChanged: widget.onGuitarStartFretChanged,
+        onGuitarNoteHover: widget.onGuitarNoteHover,
       );
     }
     return GestureDetector(

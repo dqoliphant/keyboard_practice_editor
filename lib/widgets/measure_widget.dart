@@ -28,6 +28,7 @@ class MeasureWidget extends StatefulWidget {
   final VoidCallback? onConvertToGuitar;
   final VoidCallback? onConvertToPiano;
   final void Function(int delta)? onGuitarStartFretChanged;
+  final void Function(int? keyboard, int? semitone)? onGuitarNoteHover;
 
   const MeasureWidget({
     super.key,
@@ -53,6 +54,7 @@ class MeasureWidget extends StatefulWidget {
     this.onConvertToGuitar,
     this.onConvertToPiano,
     this.onGuitarStartFretChanged,
+    this.onGuitarNoteHover,
   });
 
   @override
@@ -113,6 +115,7 @@ class _MeasureWidgetState extends State<MeasureWidget> {
           onDelete: widget.onDelete,
           onConvertToPiano: widget.onConvertToPiano,
           onStartFretChanged: widget.onGuitarStartFretChanged ?? (_) {},
+          onNoteHover: widget.onGuitarNoteHover,
         ),
       );
     }

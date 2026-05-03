@@ -309,6 +309,7 @@ class GuitarChordDiagramWidget extends StatefulWidget {
   final VoidCallback onDelete;
   final VoidCallback? onConvertToPiano;
   final void Function(int delta) onStartFretChanged;
+  final void Function(int? keyboard, int? semitone)? onNoteHover;
 
   const GuitarChordDiagramWidget({
     super.key,
@@ -323,6 +324,7 @@ class GuitarChordDiagramWidget extends StatefulWidget {
     required this.onDelete,
     this.onConvertToPiano,
     required this.onStartFretChanged,
+    this.onNoteHover,
   });
 
   @override
@@ -361,12 +363,24 @@ class _GuitarChordDiagramWidgetState extends State<GuitarChordDiagramWidget> {
       _hovString = hit?.$1 ?? -1;
       _hovFretRow = hit?.$2 ?? -1;
     });
+    if (hit != null) {
+      final (si, fr) = hit;
+      // fretRow==0 is the O/X zone — show the open-string note as preview
+      final fretAbsolute = fr == 0 ? 0 : widget.chord.startFret + fr - 1;
+      final staff = GuitarChordData.noteToStaff(si, fretAbsolute);
+      widget.onNoteHover?.call(staff?.$1, staff?.$2);
+    } else {
+      widget.onNoteHover?.call(null, null);
+    }
   }
 
-  void _onExit() => setState(() {
-        _hovString = -1;
-        _hovFretRow = -1;
-      });
+  void _onExit() {
+    setState(() {
+      _hovString = -1;
+      _hovFretRow = -1;
+    });
+    widget.onNoteHover?.call(null, null);
+  }
 
   void _onTapUp(Offset localPos, double w, double h) {
     final layout = _GuitarLayout(w, h, widget.chord.startFret);

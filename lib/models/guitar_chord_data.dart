@@ -55,6 +55,19 @@ class GuitarChordData {
         chordName: json['chordName'] as String? ?? '',
       );
 
+  // Converts a hovered string + fret to (keyboard, semitone) for GrandStaffWidget.
+  // fretAbsolute == 0 means open string. Returns null if out of the staff range.
+  //
+  // Treble (keyboard 0): C4–B5  →  MIDI 60–83
+  // Bass   (keyboard 1): C2–B3  →  MIDI 36–59
+  static (int, int)? noteToStaff(int stringIdx, int fretAbsolute) {
+    const openMidi = [40, 45, 50, 55, 59, 64];
+    final midi = openMidi[stringIdx] + fretAbsolute;
+    if (midi >= 60 && midi < 84) return (0, midi - 60);
+    if (midi >= 36 && midi < 60) return (1, midi - 36);
+    return null;
+  }
+
   // Converts the sounding notes of this chord to the [2][24] bool array that
   // GrandStaffWidget expects.
   //

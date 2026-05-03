@@ -302,6 +302,13 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
+  void _onGuitarNoteHover(int? keyboard, int? semitone) {
+    setState(() {
+      _hoveredKeyboard = keyboard;
+      _hoveredSemitone = semitone;
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Guitar chord actions
 
@@ -436,6 +443,7 @@ class _EditorPageState extends State<EditorPage> {
               onGuitarFingerCycled: _guitarFingerCycled,
               onGuitarChordNameChanged: _guitarChordNameChanged,
               onGuitarStartFretChanged: _guitarStartFretChanged,
+              onGuitarNoteHover: _showGrandStaff ? _onGuitarNoteHover : null,
             ),
           ),
         ],
