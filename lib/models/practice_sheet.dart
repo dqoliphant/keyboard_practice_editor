@@ -129,16 +129,26 @@ class PracticeSheet {
     guitarChords[slotIdx] = data.copyWith(fingers: newFingers);
   }
 
+  // Cycles the header marker for a string:
+  //   fretted → X  (mute a fretted string)
+  //   O (0)   → X (-1)
+  //   X (-1)  → nothing (-2)
+  //   nothing → O (0)
   void toggleGuitarStringMute(int slotIdx, int stringIdx) {
     final data = guitarChords[slotIdx];
     if (data == null) return;
     final newFrets = List<int>.from(data.frets);
     final newFingers = List<int>.from(data.fingers);
-    if (newFrets[stringIdx] == -1) {
-      newFrets[stringIdx] = 0;
-    } else {
+    final cur = newFrets[stringIdx];
+    if (cur > 0) {
       newFrets[stringIdx] = -1;
       newFingers[stringIdx] = 0;
+    } else if (cur == 0) {
+      newFrets[stringIdx] = -1;
+    } else if (cur == -1) {
+      newFrets[stringIdx] = -2;
+    } else {
+      newFrets[stringIdx] = 0; // -2 → O
     }
     guitarChords[slotIdx] = data.copyWith(frets: newFrets, fingers: newFingers);
   }

@@ -4,7 +4,7 @@ const int kGuitarFretRows = 4;
 const List<String> kGuitarStringNames = ['E', 'A', 'D', 'G', 'B', 'e'];
 
 class GuitarChordData {
-  // -1 = muted, 0 = open, 1–22 = fret number pressed
+  // -2 = no marker, -1 = muted (X), 0 = open (O), 1–22 = fret number pressed
   final List<int> frets;
   // 0 = no finger label, 1–4 = finger number
   final List<int> fingers;
@@ -79,7 +79,7 @@ class GuitarChordData {
     final keys = List.generate(2, (_) => List.filled(24, false));
     for (int s = 0; s < kGuitarStrings; s++) {
       final fret = frets[s];
-      if (fret < 0) continue; // muted
+      if (fret < 0) continue; // muted or no marker
       final midi = openMidi[s] + fret;
       if (midi >= 60 && midi < 84) {
         keys[0][midi - 60] = true; // treble

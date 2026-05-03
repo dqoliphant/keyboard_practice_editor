@@ -114,7 +114,7 @@ class GuitarChordDiagramPainter extends CustomPainter {
         canvas.drawLine(
             Offset(c.dx + xSize, c.dy - xSize), Offset(c.dx - xSize, c.dy + xSize), xPaint);
       }
-      // If fret > 0 the dot inside the grid shows the note; no O/X needed.
+      // fret == -2: no marker; fret > 0: dot in grid shows the note.
     }
   }
 
