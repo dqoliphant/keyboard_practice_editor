@@ -55,6 +55,61 @@ class GuitarChordData {
         chordName: json['chordName'] as String? ?? '',
       );
 
+  // Piano → Guitar: maps active piano keys to the lowest available frets on each string.
+  // Any piano note that can't be reached (no guitar string within 12 frets) is silently dropped.
+  factory GuitarChordData.fromPianoKeys(
+    List<List<bool>> state,
+    List<List<int>> fingerNumbers,
+  ) {
+    const openMidi = [40, 45, 50, 55, 59, 64];
+    // Collect all active (midi, finger) pairs from both keyboards.
+    // kb0 base MIDI = 60 (C4), kb1 base MIDI = 36 (C2).
+    final Map<int, int> midiToFinger = {};
+    for (int kb = 0; kb < 2; kb++) {
+      final base = kb == 0 ? 60 : 36;
+      for (int semi = 0; semi < 24; semi++) {
+        if (state[kb][semi]) {
+          midiToFinger[base + semi] = fingerNumbers[kb][semi];
+        }
+      }
+    }
+    final frets = List<int>.filled(kGuitarStrings, -2);
+    final fingers = List<int>.filled(kGuitarStrings, 0);
+    for (int s = 0; s < kGuitarStrings; s++) {
+      final openMidiNote = openMidi[s];
+      for (int fret = 0; fret <= 12; fret++) {
+        final midi = openMidiNote + fret;
+        if (midiToFinger.containsKey(midi)) {
+          frets[s] = fret;
+          fingers[s] = midiToFinger[midi]!;
+          break;
+        }
+      }
+    }
+    return GuitarChordData(frets: frets, fingers: fingers, startFret: 1, chordName: '');
+  }
+
+  // Guitar → Piano: maps sounding string notes back to the [2][24] piano state arrays.
+  (List<List<bool>>, List<List<int>>) toPianoKeys() {
+    const openMidi = [40, 45, 50, 55, 59, 64];
+    final pianoState = List.generate(2, (_) => List.filled(24, false));
+    final pianoFingers = List.generate(2, (_) => List.filled(24, 0));
+    for (int s = 0; s < kGuitarStrings; s++) {
+      final fret = frets[s];
+      if (fret < 0) continue;
+      final midi = openMidi[s] + fret;
+      int kb = -1;
+      int semi = -1;
+      if (midi >= 60 && midi < 84) { kb = 0; semi = midi - 60; }
+      else if (midi >= 36 && midi < 60) { kb = 1; semi = midi - 36; }
+      if (kb >= 0) {
+        pianoState[kb][semi] = true;
+        pianoFingers[kb][semi] = fingers[s];
+      }
+    }
+    return (pianoState, pianoFingers);
+  }
+
   // Converts a hovered string + fret to (keyboard, semitone) for GrandStaffWidget.
   // fretAbsolute == 0 means open string. Returns null if out of the staff range.
   //

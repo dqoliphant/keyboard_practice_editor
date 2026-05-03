@@ -313,11 +313,30 @@ class _EditorPageState extends State<EditorPage> {
   // Guitar chord actions
 
   void _convertToGuitar(int slotIdx) {
-    setState(() => _document.currentPage.setGuitarChordData(slotIdx, GuitarChordData.blank()));
+    setState(() {
+      final page = _document.currentPage;
+      page.setGuitarChordData(
+        slotIdx,
+        GuitarChordData.fromPianoKeys(page.state[slotIdx], page.fingerNumbers[slotIdx]),
+      );
+    });
   }
 
   void _convertToPiano(int slotIdx) {
-    setState(() => _document.currentPage.setGuitarChordData(slotIdx, null));
+    setState(() {
+      final page = _document.currentPage;
+      final guitarData = page.guitarChords[slotIdx];
+      if (guitarData != null) {
+        final (pianoState, pianoFingers) = guitarData.toPianoKeys();
+        for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
+          for (int semi = 0; semi < kSemitones; semi++) {
+            page.state[slotIdx][kb][semi] = pianoState[kb][semi];
+            page.fingerNumbers[slotIdx][kb][semi] = pianoFingers[kb][semi];
+          }
+        }
+      }
+      page.setGuitarChordData(slotIdx, null);
+    });
   }
 
   void _guitarFretTapped(int slotIdx, int stringIdx, int fretAbsolute) {
