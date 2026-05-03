@@ -54,4 +54,26 @@ class GuitarChordData {
         startFret: json['startFret'] as int? ?? 1,
         chordName: json['chordName'] as String? ?? '',
       );
+
+  // Converts the sounding notes of this chord to the [2][24] bool array that
+  // GrandStaffWidget expects.
+  //
+  // Standard tuning open-string MIDI notes: E2=40, A2=45, D3=50, G3=55, B3=59, E4=64
+  //   Treble (keyboard 0): C4–B5  →  MIDI 60–83, semitone = midi - 60
+  //   Bass   (keyboard 1): C2–B3  →  MIDI 36–59, semitone = midi - 36
+  List<List<bool>> toStaffKeys() {
+    const openMidi = [40, 45, 50, 55, 59, 64];
+    final keys = List.generate(2, (_) => List.filled(24, false));
+    for (int s = 0; s < kGuitarStrings; s++) {
+      final fret = frets[s];
+      if (fret < 0) continue; // muted
+      final midi = openMidi[s] + fret;
+      if (midi >= 60 && midi < 84) {
+        keys[0][midi - 60] = true; // treble
+      } else if (midi >= 36 && midi < 60) {
+        keys[1][midi - 36] = true; // bass
+      }
+    }
+    return keys;
+  }
 }

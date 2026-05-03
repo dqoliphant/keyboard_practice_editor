@@ -275,10 +275,20 @@ class _EditorPageState extends State<EditorPage> {
     return result;
   }
 
+  List<List<bool>>? get _activeStaffKeys {
+    if (_hoveredSlot == null) return null;
+    final page = _document.currentPage;
+    if (!page.occupiedSlots.contains(_hoveredSlot!)) return null;
+    if (page.isGuitarSlot(_hoveredSlot!)) {
+      return page.guitarChords[_hoveredSlot!]!.toStaffKeys();
+    }
+    return page.state[_hoveredSlot!];
+  }
+
   void _onMeasureHover(int? slotIdx) {
     setState(() {
       _hoveredSlot = slotIdx;
-      if (slotIdx == null) {
+      if (slotIdx == null || _document.currentPage.isGuitarSlot(slotIdx)) {
         _hoveredKeyboard = null;
         _hoveredSemitone = null;
       }
@@ -392,11 +402,7 @@ class _EditorPageState extends State<EditorPage> {
         children: [
           if (_showGrandStaff)
             GrandStaffWidget(
-              activeKeys: (_hoveredSlot != null &&
-                      _document.currentPage.occupiedSlots.contains(_hoveredSlot!) &&
-                      !_document.currentPage.isGuitarSlot(_hoveredSlot!))
-                  ? _document.currentPage.state[_hoveredSlot!]
-                  : null,
+              activeKeys: _activeStaffKeys,
               hoveredKeyboard: _hoveredKeyboard,
               hoveredSemitone: _hoveredSemitone,
               keySig: _document.keySig,
