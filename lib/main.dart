@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'models/practice_document.dart';
 import 'models/practice_sheet.dart';
+import 'models/guitar_chord_data.dart';
 import 'widgets/grand_staff_widget.dart';
 import 'widgets/page_navigator_widget.dart';
 import 'services/file_service.dart';
@@ -12,11 +13,13 @@ class _MeasureClipboard {
   final List<List<bool>> keyboards;
   final List<List<int>> fingerNumbers;
   final String? chordOverride;
+  final GuitarChordData? guitarChordData;
 
   _MeasureClipboard._({
     required this.keyboards,
     required this.fingerNumbers,
     this.chordOverride,
+    this.guitarChordData,
   });
 
   factory _MeasureClipboard.from(PracticeSheet sheet, int slotIdx) =>
@@ -26,6 +29,7 @@ class _MeasureClipboard {
         fingerNumbers: List.generate(kKeyboardsPerMeasure,
             (kb) => List<int>.from(sheet.fingerNumbers[slotIdx][kb])),
         chordOverride: sheet.chordOverrides[slotIdx],
+        guitarChordData: sheet.guitarChords[slotIdx],
       );
 }
 
@@ -85,16 +89,21 @@ class _EditorPageState extends State<EditorPage> {
     if (clip == null) return;
     final page = _document.currentPage;
     setState(() {
-      for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
-        for (int semi = 0; semi < kSemitones; semi++) {
-          page.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
-          page.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+      if (clip.guitarChordData != null) {
+        page.setGuitarChordData(slotIdx, clip.guitarChordData);
+      } else {
+        page.setGuitarChordData(slotIdx, null);
+        for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
+          for (int semi = 0; semi < kSemitones; semi++) {
+            page.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
+            page.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+          }
         }
-      }
-      if (clip.chordOverride != null) {
-        _document = _document.withCurrentPageUpdated(
-          page.withChordOverride(slotIdx, clip.chordOverride!),
-        );
+        if (clip.chordOverride != null) {
+          _document = _document.withCurrentPageUpdated(
+            page.withChordOverride(slotIdx, clip.chordOverride!),
+          );
+        }
       }
     });
   }
@@ -104,14 +113,18 @@ class _EditorPageState extends State<EditorPage> {
     if (clip == null) return;
     setState(() {
       var newPage = _document.currentPage.withSlotAdded(slotIdx);
-      for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
-        for (int semi = 0; semi < kSemitones; semi++) {
-          newPage.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
-          newPage.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+      if (clip.guitarChordData != null) {
+        newPage.setGuitarChordData(slotIdx, clip.guitarChordData);
+      } else {
+        for (int kb = 0; kb < kKeyboardsPerMeasure; kb++) {
+          for (int semi = 0; semi < kSemitones; semi++) {
+            newPage.state[slotIdx][kb][semi] = clip.keyboards[kb][semi];
+            newPage.fingerNumbers[slotIdx][kb][semi] = clip.fingerNumbers[kb][semi];
+          }
         }
-      }
-      if (clip.chordOverride != null) {
-        newPage = newPage.withChordOverride(slotIdx, clip.chordOverride!);
+        if (clip.chordOverride != null) {
+          newPage = newPage.withChordOverride(slotIdx, clip.chordOverride!);
+        }
       }
       _document = _document.withCurrentPageUpdated(newPage);
     });
@@ -279,6 +292,37 @@ class _EditorPageState extends State<EditorPage> {
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Guitar chord actions
+
+  void _convertToGuitar(int slotIdx) {
+    setState(() => _document.currentPage.setGuitarChordData(slotIdx, GuitarChordData.blank()));
+  }
+
+  void _convertToPiano(int slotIdx) {
+    setState(() => _document.currentPage.setGuitarChordData(slotIdx, null));
+  }
+
+  void _guitarFretTapped(int slotIdx, int stringIdx, int fretAbsolute) {
+    setState(() => _document.currentPage.toggleGuitarFret(slotIdx, stringIdx, fretAbsolute));
+  }
+
+  void _guitarStringHeaderTapped(int slotIdx, int stringIdx) {
+    setState(() => _document.currentPage.toggleGuitarStringMute(slotIdx, stringIdx));
+  }
+
+  void _guitarFingerCycled(int slotIdx, int stringIdx) {
+    setState(() => _document.currentPage.cycleGuitarFinger(slotIdx, stringIdx));
+  }
+
+  void _guitarChordNameChanged(int slotIdx, String name) {
+    setState(() => _document.currentPage.setGuitarChordName(slotIdx, name));
+  }
+
+  void _guitarStartFretChanged(int slotIdx, int delta) {
+    setState(() => _document.currentPage.shiftGuitarStartFret(slotIdx, delta));
+  }
+
   void _clear() => setState(() => _document = PracticeDocument());
 
   String get _pageLabel {
@@ -349,8 +393,8 @@ class _EditorPageState extends State<EditorPage> {
           if (_showGrandStaff)
             GrandStaffWidget(
               activeKeys: (_hoveredSlot != null &&
-                      _document.currentPage.occupiedSlots
-                          .contains(_hoveredSlot!))
+                      _document.currentPage.occupiedSlots.contains(_hoveredSlot!) &&
+                      !_document.currentPage.isGuitarSlot(_hoveredSlot!))
                   ? _document.currentPage.state[_hoveredSlot!]
                   : null,
               hoveredKeyboard: _hoveredKeyboard,
@@ -379,6 +423,13 @@ class _EditorPageState extends State<EditorPage> {
               onSongTitleChanged: _updateSongTitle,
               onSectionLabelChanged: _updateSectionLabel,
               onChordSelected: _selectChord,
+              onConvertToGuitar: _convertToGuitar,
+              onConvertToPiano: _convertToPiano,
+              onGuitarFretTapped: _guitarFretTapped,
+              onGuitarStringHeaderTapped: _guitarStringHeaderTapped,
+              onGuitarFingerCycled: _guitarFingerCycled,
+              onGuitarChordNameChanged: _guitarChordNameChanged,
+              onGuitarStartFretChanged: _guitarStartFretChanged,
             ),
           ),
         ],

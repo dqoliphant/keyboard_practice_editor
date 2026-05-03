@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
@@ -6,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/practice_document.dart';
 import '../models/practice_sheet.dart';
+import '../models/guitar_chord_data.dart';
 
 class PdfService {
   Future<Uint8List> buildPdfBytes(PracticeDocument document) async {
@@ -70,12 +72,17 @@ class PdfService {
                       child: pw.Padding(
                         padding: const pw.EdgeInsets.all(5),
                         child: sheet.occupiedSlots.contains(slotIdx)
-                            ? _buildMeasure(
-                                sheet.measureNumberForSlot(slotIdx),
-                                sheet.state[slotIdx],
-                                sheet.activeChordForSlot(slotIdx),
-                                sheet.fingerNumbers[slotIdx],
-                              )
+                            ? (sheet.isGuitarSlot(slotIdx)
+                                ? _buildGuitarMeasure(
+                                    sheet.measureNumberForSlot(slotIdx),
+                                    sheet.guitarChords[slotIdx]!,
+                                  )
+                                : _buildMeasure(
+                                    sheet.measureNumberForSlot(slotIdx),
+                                    sheet.state[slotIdx],
+                                    sheet.activeChordForSlot(slotIdx),
+                                    sheet.fingerNumbers[slotIdx],
+                                  ))
                             : pw.SizedBox(),
                       ),
                     );
@@ -266,6 +273,257 @@ class PdfService {
                   ),
                 ),
               ),
+        ],
+      );
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Guitar chord diagram rendering
+
+  pw.Widget _buildGuitarMeasure(int measureNumber, GuitarChordData chord) {
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        color: PdfColors.grey400,
+        borderRadius: pw.BorderRadius.circular(4),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+            child: pw.Row(
+              children: [
+                pw.Text(
+                  '$measureNumber',
+                  style: pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    chord.chordName,
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+                  ),
+                ),
+                pw.SizedBox(width: 8),
+              ],
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Padding(
+              padding: const pw.EdgeInsets.fromLTRB(3, 3, 3, 3),
+              child: _buildGuitarChordDiagram(chord),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildGuitarChordDiagram(GuitarChordData chord) {
+    return pw.LayoutBuilder(builder: (context, constraints) {
+      final double w = constraints?.maxWidth ?? 80;
+      final double h = constraints?.maxHeight ?? 80;
+
+      const double oxH = 16.0;
+      const double labelH = 10.0;
+      const double edgePad = 4.0;
+      final double posNumW = chord.startFret > 1 ? 14.0 : 0.0;
+
+      final double gridLeft = edgePad + posNumW;
+      final double gridRight = w - edgePad;
+      final double gridW = gridRight - gridLeft;
+      final double stringSpacing = gridW / (kGuitarStrings - 1);
+
+      final double gridTop = oxH;
+      final double gridBottom = h - labelH - 1;
+      final double gridH = gridBottom - gridTop;
+      final double fretH = gridH / kGuitarFretRows;
+
+      final double dotR = (math.min(stringSpacing, fretH) * 0.36).clamp(3.0, 8.0);
+      final double fontSize = dotR.clamp(4.0, 7.0);
+
+      double sx(int i) => gridLeft + i * stringSpacing;
+      // y from top of the pw.Stack (pdf y increases downward in pw.Positioned)
+      double cellTopY(int si, int fr) => gridTop + (fr - 0.5) * fretH - dotR;
+
+      bool hasDot(int si) {
+        final f = chord.frets[si];
+        return f >= chord.startFret && f < chord.startFret + kGuitarFretRows;
+      }
+
+      int dotRow(int si) => chord.frets[si] - chord.startFret + 1;
+
+      // Barre detection
+      final barres = <(int, int, int)>[];
+      for (int row = 1; row <= kGuitarFretRows; row++) {
+        final absF = chord.startFret + row - 1;
+        int? start;
+        for (int s = 0; s <= kGuitarStrings; s++) {
+          final match = s < kGuitarStrings &&
+              chord.frets[s] == absF &&
+              chord.fingers[s] == 1;
+          if (match) {
+            start ??= s;
+          } else if (start != null) {
+            if (s - start >= 2) barres.add((start, s - 1, row));
+            start = null;
+          }
+        }
+      }
+
+      return pw.Stack(
+        children: [
+          // ── O/X markers ──────────────────────────────────────────────────
+          for (int i = 0; i < kGuitarStrings; i++)
+            if (chord.frets[i] == 0)
+              pw.Positioned(
+                left: sx(i) - 4,
+                top: oxH / 2 - 4,
+                child: pw.SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: pw.Container(
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.black, width: 0.8),
+                      shape: pw.BoxShape.circle,
+                    ),
+                  ),
+                ),
+              )
+            else if (chord.frets[i] == -1)
+              pw.Positioned(
+                left: sx(i) - 4,
+                top: oxH / 2 - 4,
+                child: pw.SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: pw.Center(
+                    child: pw.Text('x',
+                        style: pw.TextStyle(fontSize: 7, color: PdfColors.black)),
+                  ),
+                ),
+              ),
+
+          // ── Nut (thick top border when open position) ────────────────────
+          if (chord.startFret == 1)
+            pw.Positioned(
+              left: gridLeft,
+              top: gridTop,
+              child: pw.SizedBox(
+                width: gridW,
+                height: 3.5,
+                child: pw.Container(color: PdfColors.black),
+              ),
+            ),
+
+          // ── String lines (thin vertical) ─────────────────────────────────
+          for (int i = 0; i < kGuitarStrings; i++)
+            pw.Positioned(
+              left: sx(i) - 0.3,
+              top: gridTop + (chord.startFret == 1 ? 3.5 : 0),
+              child: pw.SizedBox(
+                width: 0.6,
+                height: gridH - (chord.startFret == 1 ? 3.5 : 0),
+                child: pw.Container(color: PdfColors.black),
+              ),
+            ),
+
+          // ── Fret lines (horizontal) ───────────────────────────────────────
+          for (int row = 0; row <= kGuitarFretRows; row++)
+            if (!(chord.startFret == 1 && row == 0))  // skip nut row (drawn as thick bar above)
+              pw.Positioned(
+                left: gridLeft,
+                top: gridTop + row * fretH - (row == 0 ? 0 : 0),
+                child: pw.SizedBox(
+                  width: gridW,
+                  height: 0.6,
+                  child: pw.Container(color: PdfColors.black),
+                ),
+              ),
+
+          // ── Position number ───────────────────────────────────────────────
+          if (chord.startFret > 1)
+            pw.Positioned(
+              left: 0,
+              top: gridTop + fretH * 0.5 - 4,
+              child: pw.Text(
+                '${chord.startFret}fr',
+                style: pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+              ),
+            ),
+
+          // ── Barres ────────────────────────────────────────────────────────
+          for (final (fs, ts, fr) in barres)
+            pw.Positioned(
+              left: sx(fs) - dotR * 0.5,
+              top: gridTop + (fr - 0.5) * fretH - dotR,
+              child: pw.SizedBox(
+                width: sx(ts) - sx(fs) + dotR,
+                height: dotR * 2,
+                child: pw.Container(
+                  decoration: pw.BoxDecoration(
+                    color: PdfColors.blue400,
+                    borderRadius: pw.BorderRadius.circular(dotR),
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Dots ──────────────────────────────────────────────────────────
+          for (int i = 0; i < kGuitarStrings; i++)
+            if (hasDot(i))
+              pw.Positioned(
+                left: sx(i) - dotR,
+                top: cellTopY(i, dotRow(i)),
+                child: pw.SizedBox(
+                  width: dotR * 2,
+                  height: dotR * 2,
+                  child: pw.Container(
+                    decoration: const pw.BoxDecoration(
+                      color: PdfColors.blue400,
+                      shape: pw.BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+
+          // ── Finger numbers ────────────────────────────────────────────────
+          for (int i = 0; i < kGuitarStrings; i++)
+            if (hasDot(i) && chord.fingers[i] > 0)
+              pw.Positioned(
+                left: sx(i) - dotR,
+                top: cellTopY(i, dotRow(i)),
+                child: pw.SizedBox(
+                  width: dotR * 2,
+                  height: dotR * 2,
+                  child: pw.Center(
+                    child: pw.Text(
+                      '${chord.fingers[i]}',
+                      style: pw.TextStyle(
+                        fontSize: fontSize,
+                        color: PdfColors.white,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+          // ── String labels ─────────────────────────────────────────────────
+          for (int i = 0; i < kGuitarStrings; i++)
+            pw.Positioned(
+              left: sx(i) - 4,
+              top: h - labelH,
+              child: pw.SizedBox(
+                width: 8,
+                child: pw.Text(
+                  kGuitarStringNames[i],
+                  textAlign: pw.TextAlign.center,
+                  style: const pw.TextStyle(fontSize: 5, color: PdfColors.grey700),
+                ),
+              ),
+            ),
         ],
       );
     });

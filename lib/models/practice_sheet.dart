@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'chord_detector.dart';
+import 'guitar_chord_data.dart';
 
 const int kMeasureCount = 12;
 const int kKeyboardsPerMeasure = 2;
@@ -37,9 +38,13 @@ class PracticeSheet {
   // User-selected chord label per slot; overrides auto-detection when valid.
   final Map<int, String> chordOverrides;
 
+  // Guitar chord data per slot; non-null = slot is in guitar mode.
+  final List<GuitarChordData?> guitarChords;
+
   PracticeSheet({Set<int>? occupiedSlots, this.sectionLabel = ''})
       : occupiedSlots = occupiedSlots ?? {0},
         chordOverrides = const {},
+        guitarChords = List<GuitarChordData?>.filled(kMeasureCount, null, growable: false),
         state = List.generate(
           kMeasureCount,
           (_) => List.generate(
@@ -61,6 +66,7 @@ class PracticeSheet {
     this.sectionLabel = '',
     Map<int, String>? chordOverrides,
     List<List<List<int>>>? fingerNumbers,
+    List<GuitarChordData?>? guitarChords,
   })  : occupiedSlots = Set.unmodifiable(occupiedSlots),
         chordOverrides = Map.unmodifiable(chordOverrides ?? {}),
         fingerNumbers = fingerNumbers ??
@@ -70,7 +76,11 @@ class PracticeSheet {
                 kKeyboardsPerMeasure,
                 (_) => List.filled(kSemitones, 0),
               ),
-            );
+            ),
+        guitarChords = guitarChords ?? List<GuitarChordData?>.filled(kMeasureCount, null, growable: false);
+
+  // ---------------------------------------------------------------------------
+  // Piano key mutations (in-place, like mutable state)
 
   void toggle(int slotIdx, int keyboard, int semitone) {
     if (fingerNumbers[slotIdx][keyboard][semitone] > 0) {
@@ -86,6 +96,68 @@ class PracticeSheet {
     final cur = fingerNumbers[slotIdx][keyboard][semitone];
     fingerNumbers[slotIdx][keyboard][semitone] = cur >= 5 ? 0 : cur + 1;
   }
+
+  // ---------------------------------------------------------------------------
+  // Guitar chord mutations (in-place)
+
+  bool isGuitarSlot(int slotIdx) => guitarChords[slotIdx] != null;
+
+  void setGuitarChordData(int slotIdx, GuitarChordData? data) {
+    guitarChords[slotIdx] = data;
+  }
+
+  void toggleGuitarFret(int slotIdx, int stringIdx, int fretAbsolute) {
+    final data = guitarChords[slotIdx];
+    if (data == null) return;
+    final newFrets = List<int>.from(data.frets);
+    final newFingers = List<int>.from(data.fingers);
+    if (newFrets[stringIdx] == fretAbsolute) {
+      newFrets[stringIdx] = 0;
+      newFingers[stringIdx] = 0;
+    } else {
+      newFrets[stringIdx] = fretAbsolute;
+    }
+    guitarChords[slotIdx] = data.copyWith(frets: newFrets, fingers: newFingers);
+  }
+
+  void cycleGuitarFinger(int slotIdx, int stringIdx) {
+    final data = guitarChords[slotIdx];
+    if (data == null || data.frets[stringIdx] <= 0) return;
+    final newFingers = List<int>.from(data.fingers);
+    final cur = newFingers[stringIdx];
+    newFingers[stringIdx] = cur >= 4 ? 0 : cur + 1;
+    guitarChords[slotIdx] = data.copyWith(fingers: newFingers);
+  }
+
+  void toggleGuitarStringMute(int slotIdx, int stringIdx) {
+    final data = guitarChords[slotIdx];
+    if (data == null) return;
+    final newFrets = List<int>.from(data.frets);
+    final newFingers = List<int>.from(data.fingers);
+    if (newFrets[stringIdx] == -1) {
+      newFrets[stringIdx] = 0;
+    } else {
+      newFrets[stringIdx] = -1;
+      newFingers[stringIdx] = 0;
+    }
+    guitarChords[slotIdx] = data.copyWith(frets: newFrets, fingers: newFingers);
+  }
+
+  void setGuitarChordName(int slotIdx, String name) {
+    final data = guitarChords[slotIdx];
+    if (data == null) return;
+    guitarChords[slotIdx] = data.copyWith(chordName: name);
+  }
+
+  void shiftGuitarStartFret(int slotIdx, int delta) {
+    final data = guitarChords[slotIdx];
+    if (data == null) return;
+    final newStart = (data.startFret + delta).clamp(1, 20);
+    guitarChords[slotIdx] = data.copyWith(startFret: newStart);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Read helpers
 
   /// Display number for an occupied slot (1-based rank among occupied slots).
   int measureNumberForSlot(int slotIdx) {
@@ -112,11 +184,15 @@ class PracticeSheet {
     return all.first;
   }
 
+  // ---------------------------------------------------------------------------
+  // Immutable structural mutations
+
   PracticeSheet withSectionLabel(String label) => PracticeSheet.fromState(state,
       occupiedSlots: occupiedSlots,
       sectionLabel: label,
       chordOverrides: chordOverrides,
-      fingerNumbers: fingerNumbers);
+      fingerNumbers: fingerNumbers,
+      guitarChords: guitarChords);
 
   PracticeSheet withSlotRemoved(int slotIdx) {
     final newSlots = Set<int>.from(occupiedSlots)..remove(slotIdx);
@@ -125,7 +201,8 @@ class PracticeSheet {
         occupiedSlots: newSlots,
         sectionLabel: sectionLabel,
         chordOverrides: newOverrides,
-        fingerNumbers: fingerNumbers);
+        fingerNumbers: fingerNumbers,
+        guitarChords: guitarChords);
   }
 
   PracticeSheet withSlotAdded(int slotIdx) {
@@ -147,12 +224,16 @@ class PracticeSheet {
             : List<int>.from(fingerNumbers[mi][ki]),
       ),
     );
+    // Clear guitar data for the new slot (new slots start in piano mode)
+    final newGuitar = List<GuitarChordData?>.from(guitarChords);
+    newGuitar[slotIdx] = null;
     return PracticeSheet.fromState(
       newState,
       occupiedSlots: {...occupiedSlots, slotIdx},
       sectionLabel: sectionLabel,
       chordOverrides: chordOverrides,
       fingerNumbers: newFingers,
+      guitarChords: newGuitar,
     );
   }
 
@@ -162,11 +243,17 @@ class PracticeSheet {
         occupiedSlots: occupiedSlots,
         sectionLabel: sectionLabel,
         chordOverrides: newOverrides,
-        fingerNumbers: fingerNumbers);
+        fingerNumbers: fingerNumbers,
+        guitarChords: guitarChords);
   }
+
+  // ---------------------------------------------------------------------------
+  // Serialization
 
   bool get _hasFingerNumbers =>
       fingerNumbers.any((m) => m.any((k) => k.any((v) => v > 0)));
+
+  bool get _hasGuitarChords => guitarChords.any((g) => g != null);
 
   Map<String, dynamic> toJson() => {
         'occupiedSlots': (occupiedSlots.toList()..sort()),
@@ -181,6 +268,8 @@ class PracticeSheet {
           'fingerNumbers': fingerNumbers
               .map((m) => m.map((k) => k.toList()).toList())
               .toList(),
+        if (_hasGuitarChords)
+          'guitarChords': guitarChords.map((g) => g?.toJson()).toList(),
       };
 
   factory PracticeSheet.fromJson(Map<String, dynamic> json) {
@@ -215,11 +304,17 @@ class PracticeSheet {
             ),
           )
         : null;
+    final rawGuitar = json['guitarChords'] as List?;
+    final guitar = rawGuitar != null
+        ? List<GuitarChordData?>.from(rawGuitar.map((g) =>
+            g != null ? GuitarChordData.fromJson(g as Map<String, dynamic>) : null))
+        : null;
     return PracticeSheet.fromState(s,
         occupiedSlots: slots,
         sectionLabel: json['sectionLabel'] as String? ?? '',
         chordOverrides: overrides,
-        fingerNumbers: fingers);
+        fingerNumbers: fingers,
+        guitarChords: guitar);
   }
 
   String toJsonString() => jsonEncode(toJson());

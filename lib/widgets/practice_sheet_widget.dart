@@ -26,6 +26,14 @@ class PracticeSheetWidget extends StatelessWidget {
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
   final void Function(int slotIdx, String chord) onChordSelected;
+  // Guitar callbacks
+  final void Function(int slotIdx)? onConvertToGuitar;
+  final void Function(int slotIdx)? onConvertToPiano;
+  final void Function(int slotIdx, int stringIdx, int fretAbsolute)? onGuitarFretTapped;
+  final void Function(int slotIdx, int stringIdx)? onGuitarStringHeaderTapped;
+  final void Function(int slotIdx, int stringIdx)? onGuitarFingerCycled;
+  final void Function(int slotIdx, String name)? onGuitarChordNameChanged;
+  final void Function(int slotIdx, int delta)? onGuitarStartFretChanged;
 
   const PracticeSheetWidget({
     super.key,
@@ -46,25 +54,51 @@ class PracticeSheetWidget extends StatelessWidget {
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
     required this.onChordSelected,
+    this.onConvertToGuitar,
+    this.onConvertToPiano,
+    this.onGuitarFretTapped,
+    this.onGuitarStringHeaderTapped,
+    this.onGuitarFingerCycled,
+    this.onGuitarChordNameChanged,
+    this.onGuitarStartFretChanged,
   });
 
   Widget _cellForSlot(int slotIdx) {
     if (sheet.occupiedSlots.contains(slotIdx)) {
+      final guitarData = sheet.guitarChords[slotIdx];
       return MeasureWidget(
         measureNumber: sheet.measureNumberForSlot(slotIdx),
         keyboards: sheet.state[slotIdx],
         fingerNumbers: sheet.fingerNumbers[slotIdx],
         chordOverride: sheet.chordOverrides[slotIdx],
+        guitarChordData: guitarData,
         onKeyTap: (kb, semi) => onKeyTap(slotIdx, kb, semi),
         onKeyFingerCycle: (kb, semi) => onKeyFingerCycle(slotIdx, kb, semi),
         onCopy: () => onCopyMeasure(slotIdx),
         onPasteValues: hasClipboard ? () => onPasteValues(slotIdx) : null,
         onChordSelected: (chord) => onChordSelected(slotIdx, chord),
         onDelete: () => onDeleteMeasure(slotIdx),
-        onKeyHover: (kb, s) => onKeyHover?.call(slotIdx, kb, s),
+        onKeyHover: guitarData == null ? (kb, s) => onKeyHover?.call(slotIdx, kb, s) : null,
         onMeasureEnter: () => onMeasureHover?.call(slotIdx),
         onMeasureExit: () => onMeasureHover?.call(null),
         grayedKeys: grayedKeys,
+        onConvertToGuitar: onConvertToGuitar != null ? () => onConvertToGuitar!(slotIdx) : null,
+        onConvertToPiano: onConvertToPiano != null ? () => onConvertToPiano!(slotIdx) : null,
+        onGuitarFretTapped: onGuitarFretTapped != null
+            ? (si, fa) => onGuitarFretTapped!(slotIdx, si, fa)
+            : null,
+        onGuitarStringHeaderTapped: onGuitarStringHeaderTapped != null
+            ? (si) => onGuitarStringHeaderTapped!(slotIdx, si)
+            : null,
+        onGuitarFingerCycled: onGuitarFingerCycled != null
+            ? (si) => onGuitarFingerCycled!(slotIdx, si)
+            : null,
+        onGuitarChordNameChanged: onGuitarChordNameChanged != null
+            ? (name) => onGuitarChordNameChanged!(slotIdx, name)
+            : null,
+        onGuitarStartFretChanged: onGuitarStartFretChanged != null
+            ? (delta) => onGuitarStartFretChanged!(slotIdx, delta)
+            : null,
       );
     }
     final persistent = slotIdx == sheet.firstUnoccupiedSlot;

@@ -28,6 +28,14 @@ class PageNavigatorWidget extends StatefulWidget {
   final void Function(String) onSongTitleChanged;
   final void Function(String) onSectionLabelChanged;
   final void Function(int slotIdx, String chord) onChordSelected;
+  // Guitar callbacks
+  final void Function(int slotIdx)? onConvertToGuitar;
+  final void Function(int slotIdx)? onConvertToPiano;
+  final void Function(int slotIdx, int stringIdx, int fretAbsolute)? onGuitarFretTapped;
+  final void Function(int slotIdx, int stringIdx)? onGuitarStringHeaderTapped;
+  final void Function(int slotIdx, int stringIdx)? onGuitarFingerCycled;
+  final void Function(int slotIdx, String name)? onGuitarChordNameChanged;
+  final void Function(int slotIdx, int delta)? onGuitarStartFretChanged;
 
   const PageNavigatorWidget({
     super.key,
@@ -50,6 +58,13 @@ class PageNavigatorWidget extends StatefulWidget {
     required this.onSongTitleChanged,
     required this.onSectionLabelChanged,
     required this.onChordSelected,
+    this.onConvertToGuitar,
+    this.onConvertToPiano,
+    this.onGuitarFretTapped,
+    this.onGuitarStringHeaderTapped,
+    this.onGuitarFingerCycled,
+    this.onGuitarChordNameChanged,
+    this.onGuitarStartFretChanged,
   });
 
   @override
@@ -178,6 +193,13 @@ class _PageNavigatorWidgetState extends State<PageNavigatorWidget> {
         onSongTitleChanged: widget.onSongTitleChanged,
         onSectionLabelChanged: widget.onSectionLabelChanged,
         onChordSelected: widget.onChordSelected,
+        onConvertToGuitar: widget.onConvertToGuitar,
+        onConvertToPiano: widget.onConvertToPiano,
+        onGuitarFretTapped: widget.onGuitarFretTapped,
+        onGuitarStringHeaderTapped: widget.onGuitarStringHeaderTapped,
+        onGuitarFingerCycled: widget.onGuitarFingerCycled,
+        onGuitarChordNameChanged: widget.onGuitarChordNameChanged,
+        onGuitarStartFretChanged: widget.onGuitarStartFretChanged,
       );
     }
     return GestureDetector(

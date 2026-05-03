@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/chord_detector.dart';
+import '../models/guitar_chord_data.dart';
+import 'guitar_chord_diagram_widget.dart';
 import 'piano_keyboard_painter.dart';
 
 class MeasureWidget extends StatefulWidget {
@@ -7,6 +9,7 @@ class MeasureWidget extends StatefulWidget {
   final List<List<bool>> keyboards; // [2][24]
   final List<List<int>> fingerNumbers; // [2][24]
   final String? chordOverride;
+  final GuitarChordData? guitarChordData; // non-null = guitar mode
   final void Function(int keyboardIdx, int semitone) onKeyTap;
   final void Function(int keyboardIdx, int semitone) onKeyFingerCycle;
   final VoidCallback onCopy;
@@ -17,6 +20,14 @@ class MeasureWidget extends StatefulWidget {
   final VoidCallback? onMeasureEnter;
   final VoidCallback? onMeasureExit;
   final Set<int> grayedKeys;
+  // Guitar callbacks
+  final void Function(int stringIdx, int fretAbsolute)? onGuitarFretTapped;
+  final void Function(int stringIdx)? onGuitarStringHeaderTapped;
+  final void Function(int stringIdx)? onGuitarFingerCycled;
+  final void Function(String name)? onGuitarChordNameChanged;
+  final VoidCallback? onConvertToGuitar;
+  final VoidCallback? onConvertToPiano;
+  final void Function(int delta)? onGuitarStartFretChanged;
 
   const MeasureWidget({
     super.key,
@@ -24,6 +35,7 @@ class MeasureWidget extends StatefulWidget {
     required this.keyboards,
     required this.fingerNumbers,
     required this.chordOverride,
+    this.guitarChordData,
     required this.onKeyTap,
     required this.onKeyFingerCycle,
     required this.onCopy,
@@ -34,6 +46,13 @@ class MeasureWidget extends StatefulWidget {
     this.onMeasureEnter,
     this.onMeasureExit,
     this.grayedKeys = const {},
+    this.onGuitarFretTapped,
+    this.onGuitarStringHeaderTapped,
+    this.onGuitarFingerCycled,
+    this.onGuitarChordNameChanged,
+    this.onConvertToGuitar,
+    this.onConvertToPiano,
+    this.onGuitarStartFretChanged,
   });
 
   @override
@@ -46,7 +65,9 @@ class _MeasureWidgetState extends State<MeasureWidget> {
   // key's own right-click handler take precedence.
   int? _hoveredSemitone;
 
-  void _showContextMenu(Offset globalPos) async {
+  bool get _isGuitar => widget.guitarChordData != null;
+
+  void _showPianoContextMenu(Offset globalPos) async {
     final result = await showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -57,11 +78,15 @@ class _MeasureWidgetState extends State<MeasureWidget> {
         if (widget.onPasteValues != null)
           const PopupMenuItem(value: 'paste_values', child: Text('Paste Values')),
         const PopupMenuDivider(),
+        if (widget.onConvertToGuitar != null)
+          const PopupMenuItem(value: 'to_guitar', child: Text('Convert to Guitar Chord')),
+        const PopupMenuDivider(),
         const PopupMenuItem(value: 'delete', child: Text('Delete measure')),
       ],
     );
     if (result == 'copy') widget.onCopy();
     if (result == 'paste_values') widget.onPasteValues?.call();
+    if (result == 'to_guitar') widget.onConvertToGuitar?.call();
     if (result == 'delete') widget.onDelete();
   }
 
@@ -72,59 +97,79 @@ class _MeasureWidgetState extends State<MeasureWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isGuitar) {
+      return MouseRegion(
+        onEnter: (_) => widget.onMeasureEnter?.call(),
+        onExit: (_) => widget.onMeasureExit?.call(),
+        child: GuitarChordDiagramWidget(
+          measureNumber: widget.measureNumber,
+          chord: widget.guitarChordData!,
+          onFretTapped: widget.onGuitarFretTapped ?? (_, __) {},
+          onStringHeaderTapped: widget.onGuitarStringHeaderTapped ?? (_) {},
+          onFingerCycled: widget.onGuitarFingerCycled ?? (_) {},
+          onChordNameChanged: widget.onGuitarChordNameChanged ?? (_) {},
+          onCopy: widget.onCopy,
+          onPasteValues: widget.onPasteValues,
+          onDelete: widget.onDelete,
+          onConvertToPiano: widget.onConvertToPiano,
+          onStartFretChanged: widget.onGuitarStartFretChanged ?? (_) {},
+        ),
+      );
+    }
+
     return MouseRegion(
       onEnter: (_) => widget.onMeasureEnter?.call(),
       onExit: (_) => widget.onMeasureExit?.call(),
       child: GestureDetector(
-      // Show delete menu on right-click anywhere on the measure, but only when
-      // no key is hovered (otherwise the key's onSecondaryTapDown handles it).
-      onSecondaryTapUp: (d) {
-        if (_hoveredSemitone == null) _showContextMenu(d.globalPosition);
-      },
-      child: Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: const Color(0xFFE0E0E0),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _ChordHeader(
-            measureNumber: widget.measureNumber,
-            keyboards: widget.keyboards,
-            chordOverride: widget.chordOverride,
-            onChordSelected: widget.onChordSelected,
+        onSecondaryTapUp: (d) {
+          if (_hoveredSemitone == null) _showPianoContextMenu(d.globalPosition);
+        },
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE0E0E0),
+            borderRadius: BorderRadius.circular(6),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
-              child: PianoKeyboardWidget(
-                activeKeys: widget.keyboards[0],
-                fingerNumbers: widget.fingerNumbers[0],
-                onKeyTap: (semi) => widget.onKeyTap(0, semi),
-                onKeyRightClick: (semi) => widget.onKeyFingerCycle(0, semi),
-                onKeyHover: (s) => _onKeyHover(0, s),
-                grayedKeys: widget.grayedKeys,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ChordHeader(
+                measureNumber: widget.measureNumber,
+                keyboards: widget.keyboards,
+                chordOverride: widget.chordOverride,
+                onChordSelected: widget.onChordSelected,
               ),
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
-              child: PianoKeyboardWidget(
-                activeKeys: widget.keyboards[1],
-                fingerNumbers: widget.fingerNumbers[1],
-                onKeyTap: (semi) => widget.onKeyTap(1, semi),
-                onKeyRightClick: (semi) => widget.onKeyFingerCycle(1, semi),
-                onKeyHover: (s) => _onKeyHover(1, s),
-                grayedKeys: widget.grayedKeys,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 4),
+                  child: PianoKeyboardWidget(
+                    activeKeys: widget.keyboards[0],
+                    fingerNumbers: widget.fingerNumbers[0],
+                    onKeyTap: (semi) => widget.onKeyTap(0, semi),
+                    onKeyRightClick: (semi) => widget.onKeyFingerCycle(0, semi),
+                    onKeyHover: (s) => _onKeyHover(0, s),
+                    grayedKeys: widget.grayedKeys,
+                  ),
+                ),
               ),
-            ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 0, 4, 4),
+                  child: PianoKeyboardWidget(
+                    activeKeys: widget.keyboards[1],
+                    fingerNumbers: widget.fingerNumbers[1],
+                    onKeyTap: (semi) => widget.onKeyTap(1, semi),
+                    onKeyRightClick: (semi) => widget.onKeyFingerCycle(1, semi),
+                    onKeyHover: (s) => _onKeyHover(1, s),
+                    grayedKeys: widget.grayedKeys,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    )));
+    );
   }
 }
 
